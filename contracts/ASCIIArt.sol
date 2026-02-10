@@ -33,6 +33,7 @@ contract ASCIIArt {
     event ArtworkTransferred(uint256 indexed id, address indexed from, address indexed to);
     event ArtworkLiked(uint256 indexed id, address indexed liker);
     event ArtworkPriceSet(uint256 indexed id, uint256 price);
+    event ArtworkSaleCancelled(uint256 indexed id);
 
     /**
      * @dev Create new ASCII artwork
@@ -82,6 +83,7 @@ contract ASCIIArt {
         bool forSale,
         uint256 likes
     ) {
+        require(_id < nextArtworkId, "Artwork does not exist");
         Artwork memory art = artworks[_id];
         return (
             art.creator,
@@ -100,7 +102,9 @@ contract ASCIIArt {
      * @dev Set artwork for sale
      */
     function setForSale(uint256 _id, uint256 _price) external {
+        require(_id < nextArtworkId, "Artwork does not exist");
         require(artworkOwner[_id] == msg.sender, "Not the owner");
+        require(_price > 0, "Price must be positive");
         artworks[_id].forSale = true;
         artworks[_id].price = _price;
         
@@ -108,24 +112,57 @@ contract ASCIIArt {
     }
 
     /**
+     * @dev Cancel a sale listing
+     */
+    function cancelSale(uint256 _id) external {
+        require(_id < nextArtworkId, "Artwork does not exist");
+        require(artworkOwner[_id] == msg.sender, "Not the owner");
+        artworks[_id].forSale = false;
+        artworks[_id].price = 0;
+
+        emit ArtworkSaleCancelled(_id);
+    }
+
+    /**
      * @dev Buy artwork
      */
     function buyArtwork(uint256 _id) external payable {
+        require(_id < nextArtworkId, "Artwork does not exist");
         Artwork storage art = artworks[_id];
         require(art.forSale, "Not for sale");
         require(msg.value >= art.price, "Insufficient payment");
         require(artworkOwner[_id] != msg.sender, "Already owner");
         
         address previousOwner = artworkOwner[_id];
-        
-        // Transfer ownership
+        uint256 salePrice = art.price;
+
         artworkOwner[_id] = msg.sender;
         art.forSale = false;
+        art.price = 0;
         
-        // Pay previous owner
-        payable(previousOwner).transfer(msg.value);
+        (bool ok, ) = payable(previousOwner).call{value: salePrice}("");
+        require(ok, "Payment to seller failed");
+
+        if (msg.value > salePrice) {
+            (bool refunded, ) = payable(msg.sender).call{value: msg.value - salePrice}("");
+            require(refunded, "Refund to buyer failed");
+        }
         
         emit ArtworkTransferred(_id, previousOwner, msg.sender);
+    }
+
+    /**
+     * @dev Transfer artwork to another address
+     */
+    function transferArtwork(uint256 _id, address _to) external {
+        require(_id < nextArtworkId, "Artwork does not exist");
+        require(artworkOwner[_id] == msg.sender, "Not the owner");
+        require(_to != address(0), "Cannot transfer to zero address");
+        require(_to != msg.sender, "Cannot transfer to self");
+
+        artworkOwner[_id] = _to;
+
+        emit ArtworkTransferred(_id, msg.sender, _to);
     }
 
     /**

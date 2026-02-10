@@ -17,7 +17,14 @@
   "function getCreatorArtworks(address _creator) external view returns (uint256[])",
   "function likeArtwork(uint256 _id) external",
   "function setForSale(uint256 _id, uint256 _price) external",
-  "function buyArtwork(uint256 _id) external payable"
+  "function buyArtwork(uint256 _id) external payable",
+  "function cancelSale(uint256 _id) external",
+  "function transferArtwork(uint256 _id, address _to) external",
+  "event ArtworkCreated(uint256 indexed id, address indexed creator, string title)",
+  "event ArtworkTransferred(uint256 indexed id, address indexed from, address indexed to)",
+  "event ArtworkLiked(uint256 indexed id, address indexed liker)",
+  "event ArtworkPriceSet(uint256 indexed id, uint256 price)",
+  "event ArtworkSaleCancelled(uint256 indexed id)"
 ]
 ```
 
@@ -40,7 +47,20 @@ await tx.wait();
 
 ## ASCII Generation
 
-The included generator (`ascii-generator.js`) provides 5 patterns:
+Import the shared generator module:
+
+```javascript
+import { generate, generatePattern, generateFramed } from './src/ascii-generator.mjs';
+
+// Full pipeline: generate + frame
+const art = generate('MONAD', { type: 'pattern', pattern: 'circles', width: 40, height: 15 });
+
+// Or use components directly
+const raw = generatePattern('waves', 40, 15);
+const framed = generateFramed(raw, 'TITLE');
+```
+
+### Available Patterns
 
 | Pattern | Function | Description |
 |---------|----------|-------------|
@@ -50,15 +70,76 @@ The included generator (`ascii-generator.js`) provides 5 patterns:
 | `grid` | Structured lines | `+` at intervals |
 | `noise` | Pseudo-random | Deterministic hash-based |
 
+## x402 Micropayments
+
+The agent supports x402 micropayments for API access:
+
 ```javascript
-import { generate, generatePattern, generateFramed } from './ascii-generator.js';
+import { X402Client } from './src/x402.mjs';
 
-// Full pipeline: generate + frame
-const art = generate('MONAD', { type: 'pattern', pattern: 'circles', width: 40, height: 15 });
+const x402 = new X402Client(wallet);
 
-// Or use components directly
-const raw = generatePattern('waves', 40, 15);
-const framed = generateFramed(raw, 'TITLE');
+// Send a micropayment
+const payment = await x402.sendPayment(
+  recipientAddress,
+  ethers.parseEther('0.001'),  // 0.001 MON
+  'MON'
+);
+
+// Check payment history
+const history = x402.getPaymentHistory();
+const totalPaid = x402.getTotalPaid();
+```
+
+## Social Posting
+
+The agent can post to social channels:
+
+```javascript
+import { SocialPoster } from './src/social.mjs';
+
+const social = new SocialPoster({
+  farcaster: process.env.FARCASTER_MNEMONIC,  // Optional
+  moltbook: process.env.MOLTBOOK_API_KEY      // Optional
+});
+
+// Post a mint
+await social.postMint({
+  title: 'My ASCII Art',
+  pattern: 'circles',
+  txHash: '0x...'
+});
+
+// Post status update
+await social.postStatus({
+  minted: 10,
+  liked: 25,
+  balance: '1.5'
+});
+```
+
+## Agent Architecture
+
+The reference agent (`scripts/agent.js`) implements an OODA loop:
+
+1. **Observe**: Gather chain state (balance, artworks, prices)
+2. **Decide**: Policy-based action selection
+3. **Act**: Execute transactions
+4. **Memory**: Persist learnings across cycles
+
+### Decision Policy
+
+```javascript
+// Pseudocode of agent decision logic
+if (balance < 0.005) return { action: 'wait' };
+if (balance < 0.01) return { action: 'like', target: unlikedArt };
+if (totalMinted === 0) return { action: 'mint' };
+if (totalMinted % 5 === 0) return { action: 'social' };
+if (hasUnlikedArt && cycle % 2 === 0) return { action: 'like' };
+if (hasUnsoldArt && cycle % 5 === 0) return { action: 'list' };
+if (hasAffordableArt && cycle % 7 === 0) return { action: 'buy' };
+if (cycle % 10 === 0) return { action: 'pay' };  // x402
+return { action: 'mint' };
 ```
 
 ## Faucet

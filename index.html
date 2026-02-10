@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monad ASCII Art - Agentic Commerce</title>
     <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+    <script type="module">
+        // Import shared ASCII generator
+        import { generate, generatePattern, generateFramed } from './src/ascii-generator.mjs';
+        window.AsciiGenerator = { generate, generatePattern, generateFramed };
+    </script>
     <style>
         * {
             margin: 0;
@@ -600,7 +605,7 @@
     <div class="container">
         <header>
             <h1>🎨 Monad ASCII Art</h1>
-            <p class="subtitle">Autonomous ASCII Art Generation for the Moltiverse Hackathon</p>
+            <p class="subtitle">Autonomous ASCII Art Generation on Monad</p>
             <div class="agent-badge">🤖 POWERED BY AUTONOMOUS AGENT</div>
             <div class="tags">
                 <span class="tag">#MoltiverseHackathon</span>
@@ -658,7 +663,7 @@
                 <div class="agent-panel">
                     <h2>
                         <span class="status-indicator"></span>
-                        Live Agent Activity
+                        Agent Activity Log
                     </h2>
                     <div class="activity-feed" id="activityFeed"></div>
                 </div>
@@ -699,7 +704,7 @@
             </div>
             <div class="stat-card">
                 <div class="stat-number">$0.001</div>
-                <div class="stat-label">x402 USDC Cost</div>
+                <div class="stat-label">Tx Cost on Monad</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number">24/7</div>
@@ -817,64 +822,78 @@
             "function likeArtwork(uint256 _id) external"
         ];
 
-        // Agent capabilities
+        // Agent capabilities - only implemented features
         const AGENT_CAPABILITIES = [
             {
                 name: "Autonomous Generation",
-                desc: "Generates ASCII art 24/7 without human approval"
-            },
-            {
-                name: "x402 Micropayments",
-                desc: "$0.001 USDC payments for API calls (impossible for humans)"
+                desc: "Generates ASCII art 24/7 without human approval using 5 algorithmic patterns"
             },
             {
                 name: "On-Chain Storage",
-                desc: "Automatically stores art on Monad via createArtwork()"
+                desc: "Automatically stores art on Monad via createArtwork() smart contract"
             },
             {
-                name: "Cross-Platform Posting",
-                desc: "Posts to Farcaster and Moltbook autonomously"
+                name: "Social Engagement",
+                desc: "Likes other agents' artwork to build community engagement"
             },
             {
-                name: "Agent-to-Agent Trading",
-                desc: "Buys, sells, and trades with other agents"
+                name: "Marketplace Activity",
+                desc: "Lists artwork for sale and buys from other agents autonomously"
+            },
+            {
+                name: "Adaptive Strategy",
+                desc: "Adjusts behavior based on balance, likes, and market conditions"
             }
         ];
 
-        // Agent activity log
-        const AGENT_ACTIVITY = [
-            {
-                time: "2026-02-07 20:08 UTC",
-                action: "MINT",
-                desc: "Minted 'Monad ASCII - Agentic Commerce Demo'",
-                tx: "0x9f68dfb360e141ea76580c86b31dcedd9b4fcae6c5a46c5709637d41328cc912",
-                autonomous: true
-            },
-            {
-                time: "2026-02-07 20:00 UTC",
-                action: "DEPLOY",
-                desc: "Deployed ASCIIArt.sol contract",
-                tx: "0xfbb49cb605cb9e72225a1a6120885cc7a3a0a22f992b1275a550a1efa368e6eb",
-                autonomous: true
-            },
-            {
-                time: "2026-02-07 05:02 UTC",
-                action: "SOCIAL",
-                desc: "Registered on Moltbook as @moonynads",
-                autonomous: true
-            },
-            {
-                time: "2026-02-07 04:30 UTC",
-                action: "PAYMENT",
-                desc: "x402 USDC micropayment ($0.001) for Farcaster API",
-                autonomous: true
-            }
-        ];
+        // Agent activity log - populated from on-chain events
+        let AGENT_ACTIVITY = [];
 
         let provider, signer, contract, userAddress;
 
+        // Fetch agent activity from on-chain events
+        async function fetchAgentActivity() {
+            try {
+                const readProvider = new ethers.providers.JsonRpcProvider(MONAD_TESTNET_RPC);
+                const readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+                
+                // Get recent artworks by agent
+                const total = await readContract.totalArtworks();
+                const count = total > 20 ? 20 : total.toNumber();
+                
+                if (count === 0) return [];
+                
+                const recentIds = await readContract.getRecentArtworks(count);
+                const activities = [];
+                
+                for (const id of recentIds) {
+                    try {
+                        const artwork = await readContract.getArtwork(id);
+                        const [creator, owner, content, title, prompt, timestamp, price, forSale, likes] = artwork;
+                        
+                        // Check if this was created by the agent
+                        if (creator.toLowerCase() === AGENT_ADDRESS.toLowerCase()) {
+                            const date = new Date(timestamp * 1000);
+                            activities.push({
+                                time: date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC',
+                                action: 'MINT',
+                                desc: `Minted "${title}"`,
+                                tx: null, // Would need to get from event logs
+                                autonomous: true
+                            });
+                        }
+                    } catch (e) { /* skip */ }
+                }
+                
+                return activities.slice(0, 10);
+            } catch (e) {
+                console.error('Failed to fetch agent activity:', e);
+                return [];
+            }
+        }
+
         // Initialize agent panels
-        function initAgentPanels() {
+        async function initAgentPanels() {
             // Capabilities
             const capList = document.getElementById('capabilities');
             capList.innerHTML = AGENT_CAPABILITIES.map(cap => `
@@ -884,69 +903,38 @@
                 </div>
             `).join('');
 
-            // Activity
+            // Activity - fetch from chain
             const activityFeed = document.getElementById('activityFeed');
-            activityFeed.innerHTML = AGENT_ACTIVITY.map(act => `
-                <div class="activity-item">
-                    <div class="activity-time">${act.time}</div>
-                    <div class="activity-action">${act.autonomous ? '🤖 ' : ''}${act.action}</div>
-                    <div class="activity-desc">${act.desc}</div>
-                    ${act.tx ? `<a href="https://testnet.monadexplorer.com/tx/${act.tx}" target="_blank" class="tx-link">View TX →</a>` : ''}
-                </div>
-            `).join('');
-        }
-
-        // Pattern generators
-        function generatePattern(type, width, height) {
-            const patterns = {
-                circles: (x, y) => {
-                    const centerX = width / 2, centerY = height / 2;
-                    const dist = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
-                    const normalized = dist / Math.min(width, height);
-                    if (normalized < 0.2) return '@';
-                    if (normalized < 0.4) return 'O';
-                    if (normalized < 0.6) return 'o';
-                    if (normalized < 0.8) return '.';
-                    return ' ';
-                },
-                waves: (x, y) => Math.sin(x * 0.3) * 5 + Math.sin(y * 0.2) * 3 > 0 ? '~' : '-',
-                diamond: (x, y) => {
-                    const dist = Math.abs(x - width/2) + Math.abs(y - height/2);
-                    return dist < 5 ? '#' : dist < 10 ? '+' : dist < 15 ? '.' : ' ';
-                },
-                grid: (x, y) => (x % 5 === 0 || y % 3 === 0) ? '+' : ' ',
-                noise: (x, y) => {
-                    const rand = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1;
-                    return rand > 0.7 ? '#' : rand > 0.4 ? '+' : rand > 0.2 ? '.' : ' ';
-                }
-            };
-
-            let result = '';
-            const generator = patterns[type] || patterns.circles;
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) result += generator(x, y);
-                result += '\n';
+            activityFeed.innerHTML = '<div class="loading">Loading agent activity...</div>';
+            
+            AGENT_ACTIVITY = await fetchAgentActivity();
+            
+            if (AGENT_ACTIVITY.length === 0) {
+                activityFeed.innerHTML = '<div class="activity-item"><div class="activity-desc">No agent activity yet. Agent will start minting soon...</div></div>';
+            } else {
+                activityFeed.innerHTML = AGENT_ACTIVITY.map(act => `
+                    <div class="activity-item">
+                        <div class="activity-time">${act.time}</div>
+                        <div class="activity-action">${act.autonomous ? '🤖 ' : ''}${act.action}</div>
+                        <div class="activity-desc">${act.desc}</div>
+                        ${act.tx ? `<a href="https://testnet.monadexplorer.com/tx/${act.tx}" target="_blank" class="tx-link">View TX →</a>` : ''}
+                    </div>
+                `).join('');
             }
-            return result;
         }
 
-        function generateFramed(content, title) {
-            const lines = content.split('\n');
-            const maxWidth = Math.max(...lines.map(l => l.length), title.length + 4);
-            let framed = '╔' + '═'.repeat(maxWidth + 2) + '╗\n';
-            framed += '║ ' + title.padEnd(maxWidth) + ' ║\n';
-            framed += '╟' + '─'.repeat(maxWidth + 2) + '╢\n';
-            lines.forEach(line => framed += '║ ' + line.padEnd(maxWidth) + ' ║\n');
-            framed += '╚' + '═'.repeat(maxWidth + 2) + '╝';
-            return framed;
-        }
-
+        // Pattern generators - uses shared module
         function generateArt() {
             const prompt = document.getElementById('prompt').value || 'MONAD';
             const pattern = document.getElementById('pattern').value;
-            const art = generatePattern(pattern, 40, 15);
-            const framed = generateFramed(art, prompt.toUpperCase().slice(0, 30));
-            document.getElementById('output').textContent = framed;
+            const art = window.AsciiGenerator.generate(prompt, { 
+                type: 'pattern', 
+                pattern, 
+                width: 40, 
+                height: 15,
+                framed: true 
+            });
+            document.getElementById('output').textContent = art;
         }
 
         async function connectWallet() {
@@ -1111,11 +1099,26 @@
             document.getElementById('gallery').scrollIntoView({ behavior: 'smooth' });
         }
 
-        window.onload = () => {
-            initAgentPanels();
+        window.onload = async () => {
+            await initAgentPanels();
             generateArt();
             loadGallery();
             setInterval(loadGallery, 30000);
+            // Refresh agent activity every 2 minutes
+            setInterval(async () => {
+                AGENT_ACTIVITY = await fetchAgentActivity();
+                const activityFeed = document.getElementById('activityFeed');
+                if (AGENT_ACTIVITY.length > 0) {
+                    activityFeed.innerHTML = AGENT_ACTIVITY.map(act => `
+                        <div class="activity-item">
+                            <div class="activity-time">${act.time}</div>
+                            <div class="activity-action">${act.autonomous ? '🤖 ' : ''}${act.action}</div>
+                            <div class="activity-desc">${act.desc}</div>
+                            ${act.tx ? `<a href="https://testnet.monadexplorer.com/tx/${act.tx}" target="_blank" class="tx-link">View TX →</a>` : ''}
+                        </div>
+                    `).join('');
+                }
+            }, 120000);
         };
     </script>
 </body>

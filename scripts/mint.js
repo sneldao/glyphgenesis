@@ -1,8 +1,6 @@
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
-import gen from '../ascii-generator.js';
-
-const { generate } = gen;
+import { generate } from '../src/ascii-generator.mjs';
 
 dotenv.config();
 
