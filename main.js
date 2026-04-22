@@ -9,6 +9,8 @@ import { renderGenerator } from './src/components/generator.js';
 import { renderGallery, loadGallery } from './src/components/gallery.js';
 import { renderForAgents } from './src/components/for-agents.js';
 import { renderFooter } from './src/components/footer.js';
+import { renderOnboarding, hasCompletedOnboarding, resetOnboarding } from './src/components/onboarding.js';
+import { subscribeToEvents } from './src/contract.js';
 
 async function init() {
     const app = document.getElementById('app');
@@ -27,6 +29,29 @@ async function init() {
     main.appendChild(createDivider());
     main.appendChild(renderGenerator());
     main.appendChild(createDivider());
+
+    // Onboarding flow — shown between generator and gallery for new users
+    if (!hasCompletedOnboarding()) {
+        const onboardingSection = document.createElement('section');
+        onboardingSection.className = 'section onboarding-section';
+        onboardingSection.id = 'onboarding-wrapper';
+        onboardingSection.setAttribute('aria-labelledby', 'onboarding-title');
+        onboardingSection.innerHTML = `
+            <span class="section-label">// Getting Started</span>
+            <h2 class="section-title" id="onboarding-title">First Time <span>Here?</span></h2>
+        `;
+        onboardingSection.appendChild(renderOnboarding());
+        main.appendChild(onboardingSection);
+
+        // Listen for onboarding restart
+        window.addEventListener('onboarding:restart', () => {
+            const container = onboardingSection.querySelector('.onboarding-flow');
+            if (container) container.remove();
+            onboardingSection.appendChild(renderOnboarding());
+        });
+    }
+
+    main.appendChild(createDivider());
     main.appendChild(renderGallery());
     main.appendChild(createDivider());
     main.appendChild(renderForAgents());
@@ -41,6 +66,32 @@ async function init() {
 
     loadGallery();
 
+    // Subscribe to real-time contract events
+    const unsubscribe = subscribeToEvents({
+        onArtworkCreated: ({ id, creator, title }) => {
+            showToast(`New art minted: "${title}" (#${id})`, 'info');
+            // Refresh gallery on new mints
+            setTimeout(() => window.dispatchEvent(new CustomEvent('gallery:refresh')), 3000);
+        },
+        onArtworkLiked: ({ id, liker }) => {
+            // Silently refresh stats (no toast for likes to avoid spam)
+            fetchTotalArtworks();
+        },
+        onArtworkTransferred: ({ id, from, to }) => {
+            showToast(`Art #${id} transferred!`, 'info');
+            setTimeout(() => window.dispatchEvent(new CustomEvent('gallery:refresh')), 2000);
+        },
+        onArtworkPriceSet: ({ id, price }) => {
+            // Refresh gallery to show new price
+            setTimeout(() => window.dispatchEvent(new CustomEvent('gallery:refresh')), 2000);
+        },
+        onTransfer: ({ from, to, tokenId }) => {
+            // ERC721 transfer event — refresh relevant data
+            fetchTotalArtworks();
+        },
+    });
+
+    // Auto-refresh intervals
     setInterval(loadGallery, 60000);
     setInterval(fetchTotalArtworks, 60000);
     setInterval(refreshBalance, 30000);
@@ -48,6 +99,14 @@ async function init() {
     // Auto-generate art on first load
     const generateBtn = document.getElementById('generateBtn');
     if (generateBtn) generateBtn.click();
+
+    // Track onboarding step completions
+    window.addEventListener('mint:success', () => {
+        // Onboarding advancement is handled within onboarding.js via wallet events
+    });
+
+    // Expose cleanup for SPA navigation (if needed)
+    window.__glyphGenesis = { unsubscribe, resetOnboarding };
 }
 
 function createDivider() {

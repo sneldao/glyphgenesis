@@ -1,4 +1,4 @@
-import { generate, parsePrompt } from '@/ascii-generator.mjs';
+import { generate, parsePrompt, creativityScore, getRarity, PATTERN_LIST, THEME_LIST } from '@/ascii-generator.mjs';
 import { isConnected, getContract, onWalletEvent } from '@/wallet.js';
 import { EXPLORER_TX, parseContractError } from '@/contract.js';
 import { showToast } from './toast.js';
@@ -25,28 +25,24 @@ export function renderGenerator() {
                     <small id="prompt-hint" style="color:var(--muted);font-size:.68rem;display:block;margin-top:5px;">Try: "cyber waves", "cosmic star animated", "diamond 50x20"</small>
                 </div>
                 <div>
+                    <label class="field-label" for="genType">Type</label>
+                    <select id="genType" aria-label="Generation type">
+                        <option value="pattern">Pattern</option>
+                        <option value="compose">Compose (Layered)</option>
+                        <option value="mutate">Mutate (Evolve)</option>
+                        <option value="banner">Banner (Text)</option>
+                    </select>
+                </div>
+                <div>
                     <label class="field-label" for="pattern">Pattern</label>
                     <select id="pattern" aria-label="Pattern type">
-                        <option value="circles">Circles \u2014 Concentric</option>
-                        <option value="waves">Waves \u2014 Sine</option>
-                        <option value="diamond">Diamond \u2014 Manhattan</option>
-                        <option value="grid">Grid \u2014 Structured</option>
-                        <option value="noise">Noise \u2014 Random</option>
-                        <option value="star">Star \u2014 Twinkling</option>
-                        <option value="spiral">Spiral \u2014 Logarithmic</option>
-                        <option value="heart">Heart \u2014 Shape</option>
+                        ${PATTERN_LIST.map(p => `<option value="${p.id}">${p.name} \u2014 ${p.desc}</option>`).join('')}
                     </select>
                 </div>
                 <div>
                     <label class="field-label" for="theme">Theme</label>
                     <select id="theme" aria-label="Visual theme">
-                        <option value="simple">Simple</option>
-                        <option value="cyberpunk">Cyberpunk</option>
-                        <option value="retro">Retro 80s</option>
-                        <option value="cosmic">Cosmic</option>
-                        <option value="ocean">Ocean</option>
-                        <option value="forest">Forest</option>
-                        <option value="brutalist">Brutalist</option>
+                        ${THEME_LIST.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
                     </select>
                 </div>
                 <div class="animate-row">
@@ -63,6 +59,7 @@ export function renderGenerator() {
             <div class="generator-output">
                 <div class="output-label" aria-hidden="true">ASCII Output</div>
                 <div id="output" role="img" aria-label="Generated ASCII art output">Click [ Generate ] to create your masterpiece...</div>
+                <div id="creativityScore" class="creativity-score" style="display:none;"></div>
                 <div class="output-actions">
                     <button type="button" class="btn btn-ghost" id="copyBtn" aria-label="Copy art to clipboard">\uD83D\uDCCB Copy</button>
                     <button type="button" class="btn btn-ghost" id="downloadBtn" aria-label="Download art as text file">\uD83D\uDCBE Download</button>
@@ -86,6 +83,11 @@ export function renderGenerator() {
     section.querySelector('#prompt').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') generateArt();
     });
+    // Show/hide pattern selector based on type
+    section.querySelector('#genType').addEventListener('change', (e) => {
+        const patternRow = section.querySelector('#pattern')?.closest('div');
+        if (patternRow) patternRow.style.display = (e.target.value === 'banner') ? 'none' : '';
+    });
 
     onWalletEvent((event) => {
         if (event === 'connect') updateMintButton(true);
@@ -106,6 +108,7 @@ function generateArt() {
     const promptInput = document.getElementById('prompt')?.value || 'MONAD';
     const patternSelect = document.getElementById('pattern')?.value || 'circles';
     const themeSelect = document.getElementById('theme')?.value || 'simple';
+    const genTypeSelect = document.getElementById('genType')?.value || 'pattern';
     const animate = document.getElementById('animateToggle')?.checked || false;
     const output = document.getElementById('output');
     if (!output) return;
@@ -115,12 +118,14 @@ function generateArt() {
     const parsed = parsePrompt(promptInput);
     const pattern = parsed.pattern || patternSelect;
     const theme = parsed.theme || themeSelect;
+    const genType = parsed.type !== 'pattern' ? parsed.type : genTypeSelect;
     const animated = parsed.animated || animate;
 
     const detected = [];
-    if (parsed.pattern) detected.push('pattern: ' + parsed.pattern);
-    if (parsed.theme) detected.push('theme: ' + parsed.theme);
+    if (parsed.pattern && parsed.pattern !== patternSelect) detected.push('pattern: ' + parsed.pattern);
+    if (parsed.theme && parsed.theme !== themeSelect) detected.push('theme: ' + parsed.theme);
     if (parsed.animated) detected.push('animated');
+    if (genType !== 'pattern') detected.push('type: ' + genType);
     const detectionMsg = detected.length > 0 ? ` (detected: ${detected.join(', ')})` : '';
 
     try {
@@ -130,12 +135,13 @@ function generateArt() {
             for (let i = 0; i < frameCount; i++) {
                 animationFrames.push(
                     generate(promptInput, {
-                        type: parsed.type || 'pattern',
+                        type: genType,
                         pattern, theme,
                         width: parsed.width || 40,
                         height: parsed.height || 15,
                         framed: true,
                         time: i / frameCount,
+                        seed: parsed.seed,
                     })
                 );
             }
@@ -149,17 +155,21 @@ function generateArt() {
             showToast(`Generated ${frameCount} animation frames!${detectionMsg}`, 'success');
         } else {
             currentArt = generate(promptInput, {
-                type: parsed.type || 'pattern',
+                type: genType,
                 pattern, theme,
                 width: parsed.width || 40,
                 height: parsed.height || 15,
                 framed: true,
+                seed: parsed.seed,
             });
             output.textContent = currentArt;
             const controls = document.getElementById('playbackControls');
             if (controls) controls.style.display = 'none';
             showToast(`Art generated with ${theme} theme!${detectionMsg}`, 'success');
         }
+
+        // Show creativity score
+        updateCreativityScore(currentArt);
     } catch(error) {
         console.error(error);
         output.textContent = 'Failed to generate art. Please try again.';
@@ -167,13 +177,30 @@ function generateArt() {
     }
 }
 
+function updateCreativityScore(art) {
+    const scoreEl = document.getElementById('creativityScore');
+    if (!scoreEl || !art) return;
+    const score = creativityScore(art);
+    const rarity = getRarity(score);
+    scoreEl.style.display = 'flex';
+    scoreEl.innerHTML = `
+        <span class="rarity-badge" style="color:${rarity.color};border-color:${rarity.color}">${rarity.emoji} ${rarity.name}</span>
+        <span class="creativity-value">Creativity: ${score}/100</span>
+    `;
+}
+
 function randomize() {
-    const patterns = ['circles', 'waves', 'diamond', 'grid', 'noise', 'star', 'spiral', 'heart'];
-    const themes = ['simple', 'cyberpunk', 'retro', 'cosmic', 'ocean', 'forest', 'brutalist'];
     const patternEl = document.getElementById('pattern');
     const themeEl = document.getElementById('theme');
-    if (patternEl) patternEl.value = patterns[Math.floor(Math.random() * patterns.length)];
-    if (themeEl) themeEl.value = themes[Math.floor(Math.random() * themes.length)];
+    const typeEl = document.getElementById('genType');
+    if (patternEl) patternEl.value = PATTERN_LIST[Math.floor(Math.random() * PATTERN_LIST.length)].id;
+    if (themeEl) themeEl.value = THEME_LIST[Math.floor(Math.random() * THEME_LIST.length)].id;
+    // 20% chance of compose/mutate type
+    if (typeEl && Math.random() < 0.2) {
+        typeEl.value = Math.random() < 0.5 ? 'compose' : 'mutate';
+    } else if (typeEl) {
+        typeEl.value = 'pattern';
+    }
     generateArt();
 }
 
@@ -247,6 +274,7 @@ async function mintArt() {
         if (statusDiv) statusDiv.innerHTML = `<div class="status-message success">\u2713 Minted successfully! <a href="${EXPLORER_TX(receipt.hash)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent2);margin-left:8px;">View TX \u2192</a></div>`;
         showToast('Artwork minted successfully!', 'success');
         window.dispatchEvent(new CustomEvent('gallery:refresh'));
+        window.dispatchEvent(new CustomEvent('mint:success'));
     } catch(error) {
         console.error(error);
         const msg = parseContractError(error);

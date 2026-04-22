@@ -2,11 +2,16 @@ import { ethers } from 'ethers';
 import { AGENT_ADDRESS, getReadContract, EXPLORER_TX, parseContractError } from '@/contract.js';
 import { isConnected, getContract, getUserAddress, onWalletEvent } from '@/wallet.js';
 import { showToast } from './toast.js';
+import { artworkCache, statsCache } from './cache.js';
+import { creativityScore, getRarity } from '@/ascii-generator.mjs';
 
 const PAGE_SIZE = 12;
 let loadedCount = 0;
 let totalAvailable = 0;
 let allArtworks = [];
+let currentFilter = 'all';
+let currentSort = 'recent';
+let searchQuery = '';
 
 export function renderGallery() {
     const section = document.createElement('section');
@@ -14,23 +19,65 @@ export function renderGallery() {
     section.id = 'gallery';
     section.setAttribute('aria-labelledby', 'gallery-title');
     section.innerHTML = `
-        <span class="section-label">// 04 \u2014 On-Chain Gallery</span>
+        <span class="section-label">// 04 — On-Chain Gallery</span>
         <h2 class="section-title" id="gallery-title">Live from the <span>Blockchain</span></h2>
-        <p style="color:var(--muted);font-size:.8rem;margin-bottom:2rem;">Fetched via <code style="color:var(--accent2)">getRecentArtworks()</code> &amp; <code style="color:var(--accent2)">getArtwork()</code> \u2014 stored permanently on Monad.</p>
+        <p style="color:var(--muted);font-size:.8rem;margin-bottom:1.5rem;">Fetched via <code style="color:var(--accent2)">getRecentArtworks()</code> &amp; <code style="color:var(--accent2)">getArtwork()</code> — stored permanently on Monad.</p>
+        <div class="gallery-toolbar">
+            <div class="gallery-search">
+                <input type="text" id="gallerySearch" placeholder="Search art by title, creator, pattern..." aria-label="Search artworks">
+            </div>
+            <div class="gallery-filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="for-sale">For Sale</button>
+                <button class="filter-btn" data-filter="agent">🤖 Agent</button>
+                <button class="filter-btn" data-filter="owned">My Art</button>
+            </div>
+            <div class="gallery-sort">
+                <select id="gallerySort" aria-label="Sort artworks">
+                    <option value="recent">Most Recent</option>
+                    <option value="likes">Most Liked</option>
+                    <option value="rarity">Rarity Score</option>
+                    <option value="price">Price (Low→High)</option>
+                </select>
+            </div>
+        </div>
         <div id="galleryContent" class="loading" role="region" aria-label="Artwork gallery">
             <span class="spinner" aria-hidden="true"></span>Loading from blockchain...
         </div>
     `;
 
+    // Search
+    section.querySelector('#gallerySearch')?.addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase();
+        renderFilteredArtworks();
+    });
+
+    // Filter buttons
+    section.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            section.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.dataset.filter;
+            renderFilteredArtworks();
+        });
+    });
+
+    // Sort
+    section.querySelector('#gallerySort')?.addEventListener('change', (e) => {
+        currentSort = e.target.value;
+        renderFilteredArtworks();
+    });
+
     window.addEventListener('gallery:refresh', () => {
         loadedCount = 0;
         allArtworks = [];
+        artworkCache.invalidateAll();
         loadGallery();
     });
 
     onWalletEvent((event) => {
         if (event === 'connect' || event === 'disconnect') {
-            if (allArtworks.length > 0) renderGalleryItems(allArtworks);
+            if (allArtworks.length > 0) renderFilteredArtworks();
         }
     });
 
@@ -44,8 +91,13 @@ export async function loadGallery() {
     container.innerHTML = '<div class="loading"><span class="spinner" aria-hidden="true"></span>Loading from blockchain...</div>';
 
     try {
-        const contract = getReadContract();
-        totalAvailable = Number(await contract.totalArtworks());
+        // Use cache for total artworks count
+        const total = await statsCache.fetchWithRetry('totalArtworks', async () => {
+            const contract = getReadContract();
+            return Number(await contract.totalArtworks());
+        }, 30000);
+
+        totalAvailable = total;
 
         if (totalAvailable === 0) {
             container.innerHTML = '<div class="empty">No artworks yet. Be the first to mint!</div>';
@@ -53,26 +105,36 @@ export async function loadGallery() {
         }
 
         const fetchCount = Math.min(PAGE_SIZE, totalAvailable);
+        const contract = getReadContract();
         const recentIds = await contract.getRecentArtworks(fetchCount);
 
         allArtworks = [];
         for (const id of recentIds) {
             try {
+                // Try cache first
+                const cached = artworkCache.get(`art_${id}`);
+                if (cached) {
+                    allArtworks.push(cached);
+                    continue;
+                }
                 const art = await contract.getArtwork(id);
                 const [creator, owner, content, title, prompt, timestamp, price, forSale, likes] = art;
-                allArtworks.push({
+                const artworkData = {
                     id: Number(id), creator, owner, content, title, prompt,
                     timestamp: Number(timestamp), price, forSale,
                     likes: Number(likes),
                     isAgent: creator.toLowerCase() === AGENT_ADDRESS.toLowerCase(),
-                });
+                    rarity: creativityScore(content),
+                };
+                artworkCache.set(`art_${id}`, artworkData, 120000);
+                allArtworks.push(artworkData);
             } catch(e) {
                 console.warn(`Failed to load artwork ${id}:`, e);
             }
         }
 
         loadedCount = allArtworks.length;
-        renderGalleryItems(allArtworks);
+        renderFilteredArtworks();
     } catch(error) {
         console.error('Gallery load failed:', error);
         container.innerHTML = `
@@ -85,6 +147,68 @@ export async function loadGallery() {
     }
 }
 
+function getFilteredArtworks() {
+    const connected = isConnected();
+    const userAddr = getUserAddress()?.toLowerCase();
+
+    let filtered = allArtworks;
+
+    // Apply search
+    if (searchQuery) {
+        filtered = filtered.filter(art =>
+            art.title.toLowerCase().includes(searchQuery) ||
+            art.prompt.toLowerCase().includes(searchQuery) ||
+            art.creator.toLowerCase().includes(searchQuery) ||
+            art.id.toString().includes(searchQuery)
+        );
+    }
+
+    // Apply filter
+    switch (currentFilter) {
+        case 'for-sale':
+            filtered = filtered.filter(a => a.forSale);
+            break;
+        case 'agent':
+            filtered = filtered.filter(a => a.isAgent);
+            break;
+        case 'owned':
+            if (connected && userAddr) {
+                filtered = filtered.filter(a => a.owner.toLowerCase() === userAddr);
+            } else {
+                filtered = [];
+            }
+            break;
+    }
+
+    // Apply sort
+    switch (currentSort) {
+        case 'likes':
+            filtered = [...filtered].sort((a, b) => b.likes - a.likes);
+            break;
+        case 'rarity':
+            filtered = [...filtered].sort((a, b) => b.rarity - a.rarity);
+            break;
+        case 'price':
+            filtered = [...filtered].sort((a, b) => {
+                const pa = a.forSale ? Number(ethers.formatEther(a.price)) : Infinity;
+                const pb = b.forSale ? Number(ethers.formatEther(b.price)) : Infinity;
+                return pa - pb;
+            });
+            break;
+        case 'recent':
+        default:
+            // Already in recent order
+            break;
+    }
+
+    return filtered;
+}
+
+function renderFilteredArtworks() {
+    const filtered = getFilteredArtworks();
+    renderGalleryItems(filtered);
+}
+
 function renderGalleryItems(artworks) {
     const container = document.getElementById('galleryContent');
     if (!container) return;
@@ -92,26 +216,35 @@ function renderGalleryItems(artworks) {
     const connected = isConnected();
     const userAddr = getUserAddress()?.toLowerCase();
 
+    if (artworks.length === 0) {
+        container.innerHTML = '<div class="empty">No artworks match your search or filter.</div>';
+        return;
+    }
+
     const html = artworks.map(art => {
         const isOwner = art.owner.toLowerCase() === userAddr;
         const shortCreator = `${art.creator.slice(0, 6)}...${art.creator.slice(-4)}`;
         const priceEth = art.forSale && art.price ? ethers.formatEther(art.price) : null;
         const date = new Date(art.timestamp * 1000).toLocaleDateString();
+        const rarity = getRarity(art.rarity);
 
         return `
             <div class="gallery-item" data-id="${art.id}" tabindex="0" role="article" aria-label="Artwork: ${escapeAttr(art.title)}">
                 <pre>${escapeHtml(art.content.slice(0, 500))}${art.content.length > 500 ? '...' : ''}</pre>
                 <div class="gallery-meta">
                     <strong>${escapeHtml(art.title)}</strong>
-                    ID: #${art.id} &middot; ${shortCreator} &middot; ${date}
-                    ${art.isAgent ? '<br><span class="agent-badge-sm">\uD83E\uDD16 AGENT</span>' : ''}
-                    ${art.forSale ? `<br><span class="for-sale-badge">\uD83D\uDCB0 For Sale: ${priceEth} MON</span>` : ''}
-                    ${art.likes > 0 ? `<br><small style="color:var(--muted)">\u2764 ${art.likes} like${art.likes !== 1 ? 's' : ''}</small>` : ''}
+                    <span class="rarity-badge" style="color:${rarity.color};border-color:${rarity.color}">${rarity.emoji} ${rarity.name} (${art.rarity})</span>
+                    <div class="gallery-meta-details">
+                        ID: #${art.id} · ${shortCreator} · ${date}
+                        ${art.isAgent ? '<br><span class="agent-badge-sm">🤖 AGENT</span>' : ''}
+                        ${art.forSale ? `<br><span class="for-sale-badge">💰 For Sale: ${priceEth} MON</span>` : ''}
+                        ${art.likes > 0 ? `<br><small style="color:var(--muted)">❤ ${art.likes} like${art.likes !== 1 ? 's' : ''}</small>` : ''}
+                    </div>
                 </div>
                 <div class="gallery-actions">
                     <button class="btn btn-ghost btn-sm" data-action="expand" aria-label="View full artwork">Expand</button>
-                    ${connected ? `<button class="btn btn-ghost btn-sm" data-action="like" data-id="${art.id}" aria-label="Like this artwork">\u2764 Like</button>` : ''}
-                    ${connected && art.forSale && !isOwner ? `<button class="btn btn-ghost btn-sm" data-action="buy" data-id="${art.id}" data-price="${art.price}" style="color:var(--accent3);border-color:var(--accent3);" aria-label="Buy this artwork for ${priceEth} MON">\uD83D\uDCB0 Buy ${priceEth} MON</button>` : ''}
+                    ${connected ? `<button class="btn btn-ghost btn-sm" data-action="like" data-id="${art.id}" aria-label="Like this artwork">❤ Like</button>` : ''}
+                    ${connected && art.forSale && !isOwner ? `<button class="btn btn-ghost btn-sm" data-action="buy" data-id="${art.id}" data-price="${art.price}" style="color:var(--accent3);border-color:var(--accent3);" aria-label="Buy this artwork for ${priceEth} MON">💰 Buy ${priceEth} MON</button>` : ''}
                 </div>
             </div>
         `;
@@ -124,11 +257,12 @@ function renderGalleryItems(artworks) {
 
     container.innerHTML = `<div class="gallery-grid">${html}</div>${loadMoreHtml}`;
 
+    // Wire up event handlers
     container.querySelectorAll('[data-action="expand"]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const id = Number(btn.closest('.gallery-item').dataset.id);
-            const art = artworks.find(a => a.id === id);
+            const art = allArtworks.find(a => a.id === id);
             if (art) showArtModal(art);
         });
     });
@@ -150,14 +284,14 @@ function renderGalleryItems(artworks) {
     container.querySelectorAll('.gallery-item').forEach(item => {
         item.addEventListener('click', () => {
             const id = Number(item.dataset.id);
-            const art = artworks.find(a => a.id === id);
+            const art = allArtworks.find(a => a.id === id);
             if (art) showArtModal(art);
         });
         item.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 const id = Number(item.dataset.id);
-                const art = artworks.find(a => a.id === id);
+                const art = allArtworks.find(a => a.id === id);
                 if (art) showArtModal(art);
             }
         });
@@ -181,21 +315,29 @@ async function loadMore() {
 
         for (const id of newIds) {
             try {
+                const cached = artworkCache.get(`art_${id}`);
+                if (cached) {
+                    allArtworks.push(cached);
+                    continue;
+                }
                 const art = await contract.getArtwork(id);
                 const [creator, owner, content, title, prompt, timestamp, price, forSale, likes] = art;
-                allArtworks.push({
+                const artworkData = {
                     id: Number(id), creator, owner, content, title, prompt,
                     timestamp: Number(timestamp), price, forSale,
                     likes: Number(likes),
                     isAgent: creator.toLowerCase() === AGENT_ADDRESS.toLowerCase(),
-                });
+                    rarity: creativityScore(content),
+                };
+                artworkCache.set(`art_${id}`, artworkData, 120000);
+                allArtworks.push(artworkData);
             } catch(e) {
                 console.warn(`Failed to load artwork ${id}:`, e);
             }
         }
 
         loadedCount += newIds.length;
-        renderGalleryItems(allArtworks);
+        renderFilteredArtworks();
     } catch(error) {
         console.error('Load more failed:', error);
         showToast('Failed to load more artworks', 'error');
@@ -214,6 +356,7 @@ function showArtModal(art) {
     const userAddr = getUserAddress()?.toLowerCase();
     const isOwner = art.owner.toLowerCase() === userAddr;
     const priceEth = art.forSale && art.price ? ethers.formatEther(art.price) : null;
+    const rarity = getRarity(art.rarity);
 
     overlay.innerHTML = `
         <div class="modal">
@@ -221,16 +364,18 @@ function showArtModal(art) {
             <pre>${escapeHtml(art.content)}</pre>
             <div class="modal-meta">
                 <strong>${escapeHtml(art.title)}</strong><br>
+                <span class="rarity-badge" style="color:${rarity.color};border-color:${rarity.color}">${rarity.emoji} ${rarity.name} (${art.rarity})</span><br>
                 ID: #${art.id}<br>
-                Creator: ${art.creator.slice(0, 6)}...${art.creator.slice(-4)} ${art.isAgent ? '<span class="agent-badge-sm">\uD83E\uDD16 AGENT</span>' : ''}<br>
+                Creator: ${art.creator.slice(0, 6)}...${art.creator.slice(-4)} ${art.isAgent ? '<span class="agent-badge-sm">🤖 AGENT</span>' : ''}<br>
                 ${art.forSale ? `Price: <span style="color:var(--accent3)">${priceEth} MON</span><br>` : ''}
                 Likes: ${art.likes}<br>
                 Created: ${new Date(art.timestamp * 1000).toLocaleString()}
             </div>
             <div class="modal-actions">
                 <button class="btn btn-ghost btn-sm" data-action="copy" aria-label="Copy art">Copy</button>
-                ${connected ? `<button class="btn btn-ghost btn-sm" data-action="like" data-id="${art.id}" aria-label="Like">\u2764 Like</button>` : ''}
+                ${connected ? `<button class="btn btn-ghost btn-sm" data-action="like" data-id="${art.id}" aria-label="Like">❤ Like</button>` : ''}
                 ${connected && art.forSale && !isOwner ? `<button class="btn btn-outline btn-sm" data-action="buy" data-id="${art.id}" data-price="${art.price}">Buy for ${priceEth} MON</button>` : ''}
+                ${connected && isOwner && !art.forSale ? `<button class="btn btn-outline btn-sm" data-action="list" data-id="${art.id}">List for Sale</button>` : ''}
             </div>
         </div>
     `;
@@ -258,6 +403,22 @@ function showArtModal(art) {
         buyArtwork(Number(e.target.dataset.id), e.target.dataset.price, e.target);
     });
 
+    overlay.querySelector('[data-action="list"]')?.addEventListener('click', async (e) => {
+        const contract = getContract();
+        if (!contract) return;
+        try {
+            const price = ethers.parseEther('0.01');
+            const tx = await contract.setForSale(Number(e.target.dataset.id), price);
+            showToast('Listing for 0.01 MON...', 'info');
+            await tx.wait();
+            showToast('Listed for sale!', 'success');
+            overlay.remove();
+            window.dispatchEvent(new CustomEvent('gallery:refresh'));
+        } catch (error) {
+            showToast(parseContractError(error), 'error');
+        }
+    });
+
     document.body.appendChild(overlay);
 }
 
@@ -274,9 +435,12 @@ async function likeArtwork(id, btn) {
         showToast('Liking artwork...', 'info');
         await tx.wait();
         showToast('Artwork liked!', 'success');
-        btn.textContent = '\u2764 Liked!';
+        btn.textContent = '❤ Liked!';
         btn.style.color = 'var(--green)';
         btn.style.borderColor = 'var(--green)';
+        // Optimistic update
+        const art = allArtworks.find(a => a.id === id);
+        if (art) { art.likes++; renderFilteredArtworks(); }
     } catch(error) {
         const msg = parseContractError(error);
         showToast(msg, 'error');
@@ -298,9 +462,10 @@ async function buyArtwork(id, price, btn) {
         showToast('Processing purchase...', 'info');
         await tx.wait();
         showToast('Artwork purchased!', 'success');
-        btn.textContent = '\u2713 Purchased!';
+        btn.textContent = '✓ Purchased!';
         btn.style.color = 'var(--green)';
         btn.style.borderColor = 'var(--green)';
+        artworkCache.invalidateAll();
         setTimeout(() => window.dispatchEvent(new CustomEvent('gallery:refresh')), 2000);
     } catch(error) {
         const msg = parseContractError(error);
