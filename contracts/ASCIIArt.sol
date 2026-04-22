@@ -224,4 +224,59 @@ contract GlyphGenesis {
         
         return recent;
     }
+
+    /**
+     * @dev Batch create artworks (for agent efficiency)
+     */
+    function batchCreateArtwork(
+        string[] memory _contents,
+        string[] memory _titles,
+        string[] memory _prompts
+    ) external returns (uint256[] memory) {
+        require(_contents.length == _titles.length, "Array length mismatch");
+        require(_titles.length == _prompts.length, "Array length mismatch");
+        require(_contents.length <= 10, "Max batch size is 10");
+        
+        uint256[] memory ids = new uint256[](_contents.length);
+        
+        for (uint256 i = 0; i < _contents.length; i++) {
+            require(bytes(_contents[i]).length > 0, "Content cannot be empty");
+            require(bytes(_contents[i]).length <= 10000, "Content too large");
+            
+            uint256 artworkId = nextArtworkId++;
+            
+            artworks[artworkId] = Artwork({
+                id: artworkId,
+                creator: msg.sender,
+                content: _contents[i],
+                title: _titles[i],
+                prompt: _prompts[i],
+                timestamp: block.timestamp,
+                price: 0,
+                forSale: false,
+                likes: 0
+            });
+            
+            artworkOwner[artworkId] = msg.sender;
+            creatorArtworks[msg.sender].push(artworkId);
+            totalArtworks++;
+            ids[i] = artworkId;
+            
+            emit ArtworkCreated(artworkId, msg.sender, _titles[i]);
+        }
+        
+        return ids;
+    }
+
+    /**
+     * @dev Get royalty info for an artwork (for frontend display)
+     */
+    function getRoyaltyInfo(uint256 _id) external view returns (address creator, uint256 royaltyAmount, uint256 salePrice) {
+        require(_id < nextArtworkId, "Artwork does not exist");
+        Artwork storage art = artworks[_id];
+        // Assume a sample sale price for display (in production, use actual offers)
+        salePrice = art.price > 0 ? art.price : 0.01 ether;
+        royaltyAmount = (salePrice * ROYALTY_PERCENT) / ROYALTY_DIVISOR;
+        creator = art.creator;
+    }
 }
