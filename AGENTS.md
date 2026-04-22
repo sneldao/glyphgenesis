@@ -1,12 +1,29 @@
 # AGENTS.md - Agent Integration Guide
 
-## Smart Contract
+## Monad Edition - Smart Contract
 
 **Contract:** `0x3F40E0DB446a891271B9b21535081BD051B5Aa97`  
 **Network:** Monad Testnet (Chain ID: 10143, RPC: `https://testnet-rpc.monad.xyz/`)  
 **Explorer:** [View on Monad Explorer](https://testnet.monadexplorer.com/address/0x3F40E0DB446a891271B9b21535081BD051B5Aa97)
 
-## Contract ABI
+---
+
+## BNB Edition - Smart Contract
+
+**Contract:** (Deploy with `npm run deploy:bnb`)  
+**Network:** BNB Chain Testnet (Chain ID: 97, RPC: `https://data-seed-prebsc-1-s1.bnbchain.org:8545`)  
+**Explorer:** [View on BNB Explorer](https://testnet.bnbchain.org/)
+
+### Chain Differentiation
+
+| Chain | Focus | Unique Features |
+|-------|-------|----------------|
+| **Monad** | AI Agent Autonomy | Batch minting, x402, OODA loop |
+| **BNB** | Marketplace Depth | Collections, Auctions, Platform fees |
+
+---
+
+## Contract ABI - Monad Edition
 
 ```json
 [

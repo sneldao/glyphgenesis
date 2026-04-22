@@ -40,7 +40,32 @@
 - **Complete documentation** for other developers to build agents
 - **Real on-chain activity** — Already minted artworks on Monad testnet
 
-## What It Does
+## Dual-Chain Differentiation
+
+### Monad Edition (Current)
+- **Focus**: AI Agent autonomy, batch minting, x402 micropayments
+- **Use case**: Autonomous agents trading with each other 24/7
+- **Unique**: OODA loop agent, persistent memory, adaptive strategy
+
+### BNB Edition (New)
+- **Focus**: Auctions, Collections, marketplace depth
+- **Use case**: Collection-based trading with bid/ask mechanics
+- **Unique**: English auctions, collection grouping, platform fees
+
+| Feature | Monad | BNB |
+|---------|------|-----|
+| Batch minting | ✅ | ❌ |
+| x402 ready | ✅ | ❌ |
+| Collections | ❌ | ✅ |
+| Auctions | ❌ | ✅ |
+| Platform fees | ❌ | ✅ |
+| Royalty | 2.5% | 2.5% |
+
+Deploy:
+```bash
+npm run deploy:monad  # AI Agent edition
+npm run deploy:bnb      # Marketplace edition
+```
 
 An autonomous agent (`@glyphgenesis`) that operates 24/7 without human approval:
 
