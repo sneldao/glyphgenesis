@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monad ASCII Art - Agentic Commerce</title>
+    <title>GlyphGenesis - AI-Powered On-Chain ASCII Art</title>
     <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
     <script type="module">
         // Import shared ASCII generator
@@ -598,18 +598,128 @@
         @media (max-width: 768px) {
             h1 { font-size: 2rem; }
             .controls { grid-template-columns: 1fr; }
+            body { padding: 15px; }
+            .wallet-btn { padding: 12px 20px; font-size: 1rem; }
+            .cta-btn { padding: 15px; font-size: 1rem; }
+            .output { min-height: 200px; font-size: 0.8rem; }
+            .gallery-grid { grid-template-columns: 1fr; }
+            .two-column { gap: 20px; }
+            .stat-number { font-size: 1.8rem; }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn-loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+        }
+
+        .toast {
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .toast.error { border-left-color: #f44336; }
+        .toast.warning { border-left-color: #ff9800; }
+        .toast.info { border-left-color: #2196F3; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+        }
+
+        .toast-close:hover { color: white; }
+
+        .toast-icon { font-size: 1.5rem; }
+        .toast-message { flex: 1; font-size: 0.9rem; }
+        .toast-retry {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+
+        /* Inline status messages */
+        .status-message {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .status-message.loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
     </style>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🎨 Monad ASCII Art</h1>
-            <p class="subtitle">Autonomous ASCII Art Generation on Monad</p>
-            <div class="agent-badge">🤖 POWERED BY AUTONOMOUS AGENT</div>
+            <h1>🎨 GlyphGenesis</h1>
+            <p class="subtitle">AI-Powered Autonomous Art on the Blockchain</p>
+            <div class="agent-badge">🤖 POWERED BY AUTONOMOUS AGENT + AI</div>
             <div class="tags">
-                <span class="tag">#MoltiverseHackathon</span>
+                <span class="tag">#FourMemeAI</span>
                 <span class="tag">#AgenticCommerce</span>
+                <span class="tag">#AIArt</span>
             </div>
         </header>
 
@@ -704,7 +814,7 @@
             </div>
             <div class="stat-card">
                 <div class="stat-number">$0.001</div>
-                <div class="stat-label">Tx Cost on Monad</div>
+                <div class="stat-label">Tx Cost (Ultra-Low Fees)</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number">24/7</div>
@@ -743,14 +853,14 @@
             <div class="output" id="output">Click "Generate ASCII Art" to create your masterpiece...</div>
 
             <button class="action-btn mint-btn" id="mintBtn" onclick="mintArt()" disabled>
-                ⛏️ Mint on Monad (Connect Wallet First)
+                ⛏️ Mint on Blockchain (Connect Wallet First)
             </button>
             <div id="mintStatus"></div>
         </div>
 
         <div class="gallery" id="gallery">
             <h2>🖼️ On-Chain Gallery (Live from Smart Contract)</h2>
-            <p style="text-align: center; margin-bottom: 20px;">These artworks are stored permanently on Monad blockchain. Fetched via getRecentArtworks() & getArtwork().</p>
+            <p style="text-align: center; margin-bottom: 20px;">These artworks are stored permanently on-chain. Fetched via getRecentArtworks() & getArtwork().</p>
             <div id="galleryContent" class="loading">Loading from blockchain...</div>
         </div>
 
@@ -765,7 +875,7 @@
                     <div class="interaction-icon">📜</div>
                     <h3>Read AGENTS.md</h3>
                     <p>Full API docs, code examples, and integration guide</p>
-                    <a href="https://github.com/sneldao/monad-ascii-art/blob/main/AGENTS.md" target="_blank" class="onboarding-link green">Read Docs →</a>
+                    <a href="https://github.com/sneldao/glyphgenesis/blob/main/AGENTS.md" target="_blank" class="onboarding-link green">Read Docs →</a>
                 </div>
 
                 <div class="interaction-card">
@@ -786,7 +896,7 @@
                     <div class="interaction-icon">🔧</div>
                     <h3>Build on Top</h3>
                     <p>Fork it, extend it, create competing marketplaces</p>
-                    <a href="https://github.com/sneldao/monad-ascii-art" target="_blank" class="onboarding-link blue">View Code →</a>
+                    <a href="https://github.com/sneldao/glyphgenesis" target="_blank" class="onboarding-link blue">View Code →</a>
                 </div>
             </div>
 
@@ -830,7 +940,7 @@
             },
             {
                 name: "On-Chain Storage",
-                desc: "Automatically stores art on Monad via createArtwork() smart contract"
+                desc: "Automatically stores art on blockchain via createArtwork() smart contract"
             },
             {
                 name: "Social Engagement",
@@ -848,6 +958,47 @@
 
         // Agent activity log - populated from on-chain events
         let AGENT_ACTIVITY = [];
+
+        // Toast notification system
+        function showToast(message, type = 'info', retryCallback = null) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            
+            let content = `
+                <span class="toast-icon">${icons[type]}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            if (retryCallback) {
+                content += `<button class="toast-retry" onclick="this.parentElement.remove(); ${retryCallback}">Retry</button>`;
+            }
+            
+            toast.innerHTML = content;
+            container.appendChild(toast);
+            
+            // Auto-dismiss after 5 seconds (except errors)
+            if (type !== 'error') {
+                setTimeout(() => toast.remove(), 5000);
+            }
+        }
+
+        function setButtonLoading(btnId, loading, originalText = null) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            
+            if (loading) {
+                btn.dataset.originalText = btn.textContent;
+                btn.innerHTML = '<span class="spinner"></span>Processing...';
+                btn.classList.add('btn-loading');
+            } else {
+                btn.textContent = btn.dataset.originalText || originalText || btn.textContent;
+                btn.classList.remove('btn-loading');
+            }
+        }
 
         let provider, signer, contract, userAddress;
 
@@ -940,10 +1091,12 @@
         async function connectWallet() {
             try {
                 if (!window.ethereum) {
-                    alert('Please install MetaMask!');
+                    showToast('Please install MetaMask to continue', 'error');
                     return;
                 }
 
+                setButtonLoading('walletBtn', true, 'Connecting...');
+                
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 userAddress = accounts[0];
 
@@ -958,7 +1111,7 @@
                             method: 'wallet_addEthereumChain',
                             params: [{
                                 chainId: '0x' + CHAIN_ID.toString(16),
-                                chainName: 'Monad Testnet',
+                                chainName: 'Blockchain (Monad Testnet)',
                                 nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
                                 rpcUrls: [MONAD_TESTNET_RPC],
                                 blockExplorerUrls: ['https://testnet.monadexplorer.com/']
@@ -979,15 +1132,19 @@
                 document.getElementById('mintBtn').disabled = false;
                 document.getElementById('mintBtn').textContent = '⛏️ Mint This Art on Monad';
 
+                showToast(`Wallet connected: ${shortAddr}`, 'success');
+
             } catch (error) {
                 console.error(error);
-                document.getElementById('walletInfo').innerHTML = `<div class="error">Failed: ${error.message}</div>`;
+                showToast(`Connection failed: ${error.message}`, 'error');
+            } finally {
+                setButtonLoading('walletBtn', false);
             }
         }
 
         async function mintArt() {
             if (!contract) {
-                alert('Connect wallet first!');
+                showToast('Please connect your wallet first', 'warning');
                 return;
             }
 
@@ -999,35 +1156,39 @@
             const statusDiv = document.getElementById('mintStatus');
 
             try {
-                mintBtn.disabled = true;
-                mintBtn.textContent = '⏳ Calling createArtwork()...';
-                statusDiv.innerHTML = '<div class="status-message warning">Sending transaction to contract...</div>';
+                setButtonLoading('mintBtn', true);
+                statusDiv.innerHTML = '<div class="status-message loading"><span class="spinner"></span>Sending transaction to contract...</div>';
+                showToast('Initiating mint transaction...', 'info');
 
                 const tx = await contract.createArtwork(output, `${prompt} - ${pattern}`, `Generated with ${pattern} pattern`);
 
-                statusDiv.innerHTML = '<div class="status-message warning">Mining transaction...</div>';
+                statusDiv.innerHTML = '<div class="status-message loading"><span class="spinner"></span>Mining transaction... (this may take a few seconds)</div>';
                 const receipt = await tx.wait();
                 
                 statusDiv.innerHTML = `<div class="status-message success">
-                    ✅ Minted! Contract state updated.<br>
+                    ✅ Minted successfully! Contract state updated.<br>
                     <a href="https://testnet.monadexplorer.com/tx/${receipt.transactionHash}" target="_blank" style="color: white;">
                         View Transaction →
                     </a>
                 </div>`;
-
+                
+                showToast('Artwork minted successfully! 🎨', 'success');
                 setTimeout(loadGallery, 2000);
 
             } catch (error) {
                 console.error(error);
                 statusDiv.innerHTML = `<div class="status-message error">❌ ${error.message}</div>`;
+                showToast(`Minting failed: ${error.message}`, 'error', 'mintArt()');
             } finally {
-                mintBtn.disabled = false;
-                mintBtn.textContent = '⛏️ Mint This Art on Monad';
+                setButtonLoading('mintBtn', false, '⛏️ Mint This Art on Monad');
             }
         }
 
         async function loadGallery() {
             try {
+                const galleryContent = document.getElementById('galleryContent');
+                galleryContent.innerHTML = '<div class="loading"><span class="spinner"></span>Loading from blockchain...</div>';
+                
                 const readProvider = new ethers.providers.JsonRpcProvider(MONAD_TESTNET_RPC);
                 const readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
 
@@ -1035,7 +1196,7 @@
                 document.getElementById('totalArtworks').textContent = total.toString();
 
                 if (total.eq(0)) {
-                    document.getElementById('galleryContent').innerHTML = '<div class="loading">No artworks yet. Be the first to mint!</div>';
+                    galleryContent.innerHTML = '<div class="loading">No artworks yet. Be the first to mint!</div>';
                     return;
                 }
 
@@ -1044,44 +1205,52 @@
 
                 const galleryHTML = [];
                 for (const id of recentIds) {
-                    const artwork = await readContract.getArtwork(id);
-                    const [creator, owner, content, title, prompt] = artwork;
-                    
-                    galleryHTML.push(`
-                        <div class="gallery-item">
-                            <pre>${content.slice(0, 500)}${content.length > 500 ? '...' : ''}</pre>
-                            <div class="gallery-meta">
-                                <strong>${title}</strong><br>
-                                ID: ${id.toString()}<br>
-                                ${creator.toLowerCase() === AGENT_ADDRESS.toLowerCase() ? '🤖 ' : ''}
-                                Creator: ${creator.slice(0, 6)}...${creator.slice(-4)}
+                    try {
+                        const artwork = await readContract.getArtwork(id);
+                        const [creator, owner, content, title, prompt] = artwork;
+                        
+                        galleryHTML.push(`
+                            <div class="gallery-item">
+                                <pre>${content.slice(0, 500)}${content.length > 500 ? '...' : ''}</pre>
+                                <div class="gallery-meta">
+                                    <strong>${title}</strong><br>
+                                    ID: ${id.toString()}<br>
+                                    ${creator.toLowerCase() === AGENT_ADDRESS.toLowerCase() ? '🤖 ' : ''}
+                                    Creator: ${creator.slice(0, 6)}...${creator.slice(-4)}
+                                </div>
                             </div>
-                        </div>
-                    `);
+                        `);
+                    } catch (e) {
+                        console.warn('Failed to load artwork:', id, e);
+                    }
                 }
 
-                document.getElementById('galleryContent').innerHTML = '<div class="gallery-grid">' + galleryHTML.join('') + '</div>';
+                galleryContent.innerHTML = '<div class="gallery-grid">' + galleryHTML.join('') + '</div>';
 
             } catch (error) {
                 console.error(error);
-                document.getElementById('galleryContent').innerHTML = '<div class="error">Failed to load</div>';
+                document.getElementById('galleryContent').innerHTML = '<div class="error">Failed to load gallery. Please try again.</div>';
+                showToast('Failed to load gallery from blockchain', 'error', 'loadGallery()');
             }
         }
 
         function copyToClipboard() {
-            navigator.clipboard.writeText(document.getElementById('output').textContent).then(() => alert('✅ Copied!'));
+            navigator.clipboard.writeText(document.getElementById('output').textContent)
+                .then(() => showToast('Copied to clipboard!', 'success'))
+                .catch(() => showToast('Failed to copy', 'error'));
         }
 
         function downloadArt() {
             const blob = new Blob([document.getElementById('output').textContent], { type: 'text/plain' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'monad-ascii-art.txt';
+            a.download = 'glyphgenesis-art.txt';
             a.click();
+            showToast('Downloaded!', 'success');
         }
 
         function shareOnTwitter() {
-            const text = encodeURIComponent(`I just created ASCII art on Monad! 🎨\n\nTry it: https://sneldao.github.io/monad-ascii-art/\n\n#MoltiverseHackathon #Monad`);
+            const text = encodeURIComponent(`I just created ASCII art on GlyphGenesis! 🎨\n\nTry it: https://sneldao.github.io/glyphgenesis/\n\n#FourMemeAI #AIArt`);
             window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
         }
 

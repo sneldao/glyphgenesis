@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
 import { generate, parsePrompt } from '../src/ascii-generator.mjs';
+import { AIGenerator } from '../src/ai-generator.mjs';
 import { X402Client } from '../src/x402.mjs';
 import { SocialPoster } from '../src/social.mjs';
 import { AgentMemory } from '../src/memory.mjs';
@@ -53,6 +54,10 @@ class GlyphAgent {
       farcaster: process.env.FARCASTER_MNEMONIC,
       moltbook: process.env.MOLTBOOK_API_KEY
     });
+
+    // Initialize AI generator (real LLM or fallback)
+    this.ai = new AIGenerator(process.env.OPENAI_API_KEY);
+    this.log('AI', `AI generation ${this.ai.isEnabled() ? 'ENABLED' : 'disabled (using fallback)'}`);
 
     // Memory - persists across cycles but not restarts
     this.minted = [];
@@ -176,11 +181,24 @@ class GlyphAgent {
       switch (decision.action) {
         case 'mint': {
           const pattern = this.pickPattern();
-          const title = `${pattern} #${this.totalMinted + 1}`;
-          const art = generate(title, { type: 'pattern', pattern, width: 40, height: 15 });
+          const theme = THEMES[Math.floor(Math.random() * THEMES.length)];
+          let art, prompt;
 
-          this.log('MINT', `Creating "${title}" with ${pattern} pattern...`);
-          const tx = await this.contract.createArtwork(art, title, `Autonomous agent — ${pattern} pattern`);
+          // Use AI if available, otherwise fallback
+          if (this.ai.isEnabled()) {
+            const aiPrompt = `Create a ${theme} style ASCII art of ${pattern} pattern`;
+            const result = await this.ai.generate(aiPrompt, { width: 40, height: 15, theme });
+            art = result.content;
+            prompt = result.prompt;
+          } else {
+            // Fallback to pattern generator
+            art = generate(pattern, { type: 'pattern', pattern, width: 40, height: 15, theme });
+            prompt = `Autonomous agent — ${pattern} pattern`;
+          }
+
+          const title = `${pattern} #${this.totalMinted + 1}`;
+          this.log('MINT', `Creating "${title}" with ${this.ai.isEnabled() ? 'AI-generated' : pattern} pattern...`);
+          const tx = await this.contract.createArtwork(art, title, prompt);
           const receipt = await tx.wait();
           
           this.totalMinted++;
