@@ -888,7 +888,8 @@
             <div class="controls">
                 <div>
                     <label for="prompt">Text / Prompt:</label>
-                    <input type="text" id="prompt" placeholder="MONAD" value="MONAD">
+                    <input type="text" id="prompt" placeholder="MONAD or try 'cyberpunk waves animated 30x15'" value="MONAD">
+                    <small style="color: #888; display: block; margin-top: 5px;">Try: "cyber waves", "cosmic star animated", "diamond 50x20"</small>
                 </div>
                 <div>
                     <label for="pattern">Pattern Type:</label>
@@ -898,6 +899,7 @@
                         <option value="diamond">Diamond (Manhattan)</option>
                         <option value="grid">Grid (Structured)</option>
                         <option value="noise">Noise (Random)</option>
+                        <option value="star">Star (Twinkling)</option>
                     </select>
                 </div>
                 <div>
@@ -913,6 +915,18 @@
                 </div>
             </div>
             <button onclick="generateArt()">🎨 Generate ASCII Art</button>
+            
+            <div class="animation-controls" style="margin-top: 15px; display: flex; align-items: center; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="animateToggle" onchange="toggleAnimation()">
+                    <span>🎬 Animate</span>
+                </label>
+                <div id="playbackControls" style="display: none; gap: 5px;">
+                    <button class="action-btn" onclick="playAnimation()">▶️ Play</button>
+                    <button class="action-btn" onclick="pauseAnimation()">⏸️ Pause</button>
+                    <span id="frameCounter" style="font-size: 12px; color: #888;">Frame: 1</span>
+                </div>
+            </div>
             
             <div class="action-buttons" style="margin-top: 20px;">
                 <button class="action-btn" onclick="copyToClipboard()">📋 Copy</button>
@@ -1145,32 +1159,107 @@
             }
         }
 
+        // Animation state
+        let animationFrames = [];
+        let animationIndex = 0;
+        let animationInterval = null;
+        let isAnimating = false;
+
         // Pattern generators - uses shared module
         function generateArt() {
-            const prompt = document.getElementById('prompt').value || 'MONAD';
-            const pattern = document.getElementById('pattern').value;
-            const theme = document.getElementById('theme').value || 'simple';
+            const promptInput = document.getElementById('prompt').value || 'MONAD';
+            const patternSelect = document.getElementById('pattern').value;
+            const themeSelect = document.getElementById('theme').value || 'simple';
+            const animate = document.getElementById('animateToggle').checked;
             const output = document.getElementById('output');
+            
+            // Stop any running animation
+            pauseAnimation();
+            
+            // Parse prompt for NL understanding
+            const parsed = window.AsciiGenerator.parsePrompt(promptInput);
+            
+            // Use parsed values, fall back to dropdown selections
+            const pattern = parsed.pattern || patternSelect;
+            const theme = parsed.theme || themeSelect;
+            const animated = parsed.animated || animate;
+            
+            // Show detected settings in toast
+            const detected = [];
+            if (parsed.pattern) detected.push(`pattern: ${parsed.pattern}`);
+            if (parsed.theme) detected.push(`theme: ${parsed.theme}`);
+            if (parsed.animated) detected.push('animated');
+            const detectionMsg = detected.length > 0 ? ` (detected: ${detected.join(', ')})` : '';
             
             // Show loading state
             output.innerHTML = '<span class="spinner"></span>Generating ASCII art...';
             
             try {
-                const art = window.AsciiGenerator.generate(prompt, { 
-                    type: 'pattern', 
-                    pattern, 
-                    theme,
-                    width: 40, 
-                    height: 15,
-                    framed: true 
-                });
-                output.textContent = art;
-                showToast(`Art generated with ${theme} theme!`, 'success');
+                if (animated) {
+                    // Generate animated frames
+                    const frameCount = 8;
+                    animationFrames = [];
+                    for (let i = 0; i < frameCount; i++) {
+                        animationFrames.push(window.AsciiGenerator.generate(promptInput, { 
+                            type: parsed.type || 'pattern', 
+                            pattern, 
+                            theme,
+                            width: parsed.width || 40, 
+                            height: parsed.height || 15,
+                            framed: true,
+                            time: i / frameCount
+                        }));
+                    }
+                    animationIndex = 0;
+                    output.textContent = animationFrames[0];
+                    document.getElementById('playbackControls').style.display = 'flex';
+                    document.getElementById('frameCounter').textContent = `Frame: 1/${frameCount}`;
+                    showToast(`Generated ${frameCount} animation frames!${detectionMsg}`, 'success');
+                } else {
+                    const art = window.AsciiGenerator.generate(promptInput, { 
+                        type: parsed.type || 'pattern', 
+                        pattern, 
+                        theme,
+                        width: parsed.width || 40, 
+                        height: parsed.height || 15,
+                        framed: true 
+                    });
+                    output.textContent = art;
+                    document.getElementById('playbackControls').style.display = 'none';
+                    showToast(`Art generated with ${theme} theme!${detectionMsg}`, 'success');
+                }
             } catch (error) {
                 console.error(error);
                 output.textContent = 'Failed to generate art. Please try again.';
                 showToast(`Generation failed: ${error.message}`, 'error');
             }
+        }
+        
+        function toggleAnimation() {
+            generateArt();
+        }
+        
+        function playAnimation() {
+            if (animationFrames.length === 0) {
+                showToast('Generate animated art first!', 'error');
+                return;
+            }
+            if (isAnimating) return;
+            isAnimating = true;
+            animationInterval = setInterval(() => {
+                animationIndex = (animationIndex + 1) % animationFrames.length;
+                document.getElementById('output').textContent = animationFrames[animationIndex];
+                document.getElementById('frameCounter').textContent = `Frame: ${animationIndex + 1}/${animationFrames.length}`;
+            }, 200);
+            showToast('Animation started!', 'success');
+        }
+        
+        function pauseAnimation() {
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+            isAnimating = false;
         }
 
         async function connectWallet() {

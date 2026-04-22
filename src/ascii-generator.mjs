@@ -44,13 +44,16 @@ function parsePrompt(prompt) {
   else if (lower.includes('star')) options.pattern = 'star';
   else options.pattern = 'circles'; // default
 
-  // Theme detection
-  if (lower.includes('cyber')) options.theme = 'cyberpunk';
-  else if (lower.includes('retro') || lower.includes('80s')) options.theme = 'retro';
-  else if (lower.includes('brutal')) options.theme = 'brutalist';
-  else if (lower.includes('cosmic') || lower.includes('space')) options.theme = 'cosmic';
-  else if (lower.includes('ocean') || lower.includes('sea')) options.theme = 'ocean';
-  else if (lower.includes('forest') || lower.includes('nature')) options.theme = 'forest';
+  // Theme detection (expanded)
+  if (lower.includes('cyber') || lower.includes('neon')) options.theme = 'cyberpunk';
+  else if (lower.includes('retro') || lower.includes('80s') || lower.includes('vapor')) options.theme = 'retro';
+  else if (lower.includes('brutal') || lower.includes('raw')) options.theme = 'brutalist';
+  else if (lower.includes('cosmic') || lower.includes('space') || lower.includes('galaxy')) options.theme = 'cosmic';
+  else if (lower.includes('ocean') || lower.includes('sea') || lower.includes('aqua')) options.theme = 'ocean';
+  else if (lower.includes('forest') || lower.includes('nature') || lower.includes('green')) options.theme = 'forest';
+  else if (lower.includes('detail')) options.theme = 'detailed';
+  else if (lower.includes('block')) options.theme = 'blocks';
+  else if (lower.includes('minimal') || lower.includes('simple')) options.theme = 'minimal';
 
   // Size detection
   const sizeMatch = lower.match(/(\d+)\s*[xX]\s*(\d+)/);
@@ -179,6 +182,21 @@ function generatePattern(type, width = 40, height = 20, time = 0, charSet = null
       if (x % 5 === 0 && y % 3 === 0) return getChar(4);
       if (x % 5 === 0 || y % 3 === 0) return getChar(2);
       return getChar(0);
+    },
+    
+    star: (x, y, t) => {
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const dist = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+      // Twinkling effect based on time
+      const twinkle = Math.sin(x * 0.5 + t * 3) * Math.cos(y * 0.5 + t * 2);
+      const adjusted = dist + twinkle * 2;
+      let density = 0;
+      if (adjusted < 3) density = 4;
+      else if (adjusted < 6) density = 3;
+      else if (adjusted < 10) density = 2;
+      else if (adjusted < 15) density = 1;
+      return getChar(density);
     },
     
     noise: (x, y, t) => {
