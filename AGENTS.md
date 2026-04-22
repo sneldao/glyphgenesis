@@ -27,6 +27,17 @@
 
 ```json
 [
+  "function ownerOf(uint256 tokenId) external view returns (address)",
+  "function balanceOf(address owner) external view returns (uint256)",
+  "function transferFrom(address from, address to, uint256 tokenId) external",
+  "function approve(address to, uint256 tokenId) external",
+  "function getApproved(uint256 tokenId) external view returns (address)",
+  "function setApprovalForAll(address operator, bool approved) external",
+  "function isApprovedForAll(address owner, address operator) external view returns (bool)",
+  "function safeTransferFrom(address from, address to, uint256 tokenId) external",
+  "function tokenURI(uint256 tokenId) external view returns (string)",
+  "function name() external view returns (string)",
+  "function symbol() external view returns (string)",
   "function createArtwork(string memory _content, string memory _title, string memory _prompt) external returns (uint256)",
   "function batchCreateArtwork(string[] memory _contents, string[] memory _titles, string[] memory _prompts) external returns (uint256[])",
   "function getArtwork(uint256 _id) external view returns (address creator, address owner, string content, string title, string prompt, uint256 timestamp, uint256 price, bool forSale, uint256 likes)",
@@ -38,15 +49,37 @@
   "function setForSale(uint256 _id, uint256 _price) external",
   "function buyArtwork(uint256 _id) external payable",
   "function cancelSale(uint256 _id) external",
-  "function transferArtwork(uint256 _id, address _to) external",
+  "function pause() external",
+  "function unpause() external",
   "function ROYALTY_PERCENT() external view returns (uint256)",
+  "function MINT_COOLDOWN() external view returns (uint256)",
+  "function MAX_CONTENT_LENGTH() external view returns (uint256)",
   "event ArtworkCreated(uint256 indexed id, address indexed creator, string title)",
   "event ArtworkTransferred(uint256 indexed id, address indexed from, address indexed to)",
   "event ArtworkLiked(uint256 indexed id, address indexed liker)",
   "event ArtworkPriceSet(uint256 indexed id, uint256 price)",
-  "event ArtworkSaleCancelled(uint256 indexed id)"
+  "event ArtworkSaleCancelled(uint256 indexed id)",
+  "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+  "event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId)",
+  "event ApprovalForAll(address indexed owner, address indexed operator, bool approved)",
+  "event Paused(address account)",
+  "event Unpaused(address account)"
 ]
 ```
+
+### Security Features
+
+| Feature | Description |
+|---------|-------------|
+| **ERC721** | Full compliance — art is ownable, transferable, displayable in wallets |
+| **ReentrancyGuard** | `nonReentrant` on all value-transfer functions |
+| **Pausable** | Owner can pause/unpause minting, buying, and transfers |
+| **Rate Limiting** | 1 mint per 30 seconds per address (`MINT_COOLDOWN`) |
+| **Content Limits** | Max 10,000 chars per artwork (`MAX_CONTENT_LENGTH`) |
+| **CEI Pattern** | All state changes before external calls |
+| **Overpayment Refund** | Excess ETH returned to buyer before seller payment |
+| **tokenURI** | On-chain data URI metadata with embedded art as image |
+| **Batch Limit** | Max 10 artworks per batch mint |
 
 ### Creator Royalties
 The contract charges **2.5% royalty** on secondary sales, split between the original creator and the seller.
@@ -73,7 +106,7 @@ await tx.wait();
 Import the shared generator module:
 
 ```javascript
-import { generate, generatePattern, generateFramed } from './src/ascii-generator.mjs';
+import { generate, generatePattern, generateFramed, generateComposed, mutateArt, creativityScore, getRarity, parsePrompt, PATTERN_LIST, THEME_LIST } from './src/ascii-generator.mjs';
 
 // Full pipeline: generate + frame
 const art = generate('MONAD', { type: 'pattern', pattern: 'circles', width: 40, height: 15 });
@@ -81,34 +114,55 @@ const art = generate('MONAD', { type: 'pattern', pattern: 'circles', width: 40, 
 // Or use components directly
 const raw = generatePattern('waves', 40, 15);
 const framed = generateFramed(raw, 'TITLE');
+
+// Compose multiple patterns (layered blend)
+const composed = generateComposed('cosmic blend', { theme: 'cosmic', width: 40, height: 20 });
+
+// Mutate existing art
+const base = generatePattern('spiral', 40, 20);
+const evolved = mutateArt(base, { mutationRate: 0.15, theme: 'glitch' });
+
+// Score creativity (0-100) and get rarity tier
+const score = creativityScore(art);
+const rarity = getRarity(score); // { name: 'Rare', color: '#06b6d4', emoji: '●' }
 ```
 
-### Available Patterns
+### Available Patterns (16)
 
-| Pattern | Function | Description |
-|---------|----------|-------------|
-| `circles` | Concentric rings | `@`, `O`, `o`, `.` density |
-| `waves` | Sine waves | `~` and `-` alternation |
-| `diamond` | Manhattan distance | `#`, `+`, `.` from center |
-| `grid` | Structured lines | `+` at intervals |
-| `noise` | Pseudo-random | Deterministic hash-based |
-| `star` | Twinkling stars | Animated with time parameter |
-| `spiral` | Logarithmic spiral | Curved pattern generation |
-| `heart` | Heart shape | Valentine's/love themed |
+| Pattern | Description |
+|---------|-------------|
+| `circles` | Concentric rings |
+| `waves` | Sine wave oscillation |
+| `diamond` | Manhattan distance from center |
+| `grid` | Structured lattice |
+| `noise` | Deterministic pseudo-random |
+| `star` | Radial starburst |
+| `spiral` | Logarithmic spiral |
+| `heart` | Heart shape curve |
+| `fractal` | Julia set iteration |
+| `maze` | Procedural labyrinth |
+| `flame` | Fire simulation |
+| `dna` | Double helix |
+| `terrain` | Heightmap landscape |
+| `mandala` | Sacred geometry |
+| `matrix` | Digital rain |
+| `plasma` | Color field blending |
 
-### Available Themes
+### Available Themes (9)
 
 | Theme | Characters | Vibe |
 |-------|------------|------|
-| `simple` | `.oO@#` | Minimal |
-| `cyberpunk` | `░▒▓█` | Glitchy, neon |
-| `retro` | `.:-=+*#%@` | Classic ASCII |
-| `brutalist` | `█▓▒░ ░▒▓█` | Raw, industrial |
-| `cosmic` | `✦✧✪◎◈◇` | Space-y |
-| `ocean` | `~≈≋≈~` | Water waves |
-| `forest` | `♣♠♥♦ tree` | Nature |
+| `simple` | `█▓▒░ ` | Clean blocks |
+| `cyberpunk` | `█▓▒░│─┼┤├┬┴ ` | Glitchy, neon |
+| `retro` | `@Oo~-=+*#&% ` | Classic ASCII |
+| `brutalist` | `████ ` | Raw, industrial |
+| `cosmic` | `✦✧◉○●◎★☆  ` | Space-y |
+| `ocean` | `~≈≋◎●○▪▫─ ` | Water waves |
+| `forest` | `♣♠♥♦•◦,░▒ ` | Nature |
+| `neon` | `╔╗╚╝║═◈◇░ ` | Circuit-board |
+| `glitch` | `█▓░¦╌┆┊╳␀␗` | Corrupted data |
 
-### Generate with Theme
+### Generate with Theme or Natural Language
 
 ```javascript
 import { generate, parsePrompt } from './src/ascii-generator.mjs';
@@ -124,10 +178,32 @@ const art = generate('MONAD', {
 
 // Or let AI parse natural language
 const parsed = parsePrompt('make something retro with circles');
-// Returns: { pattern: 'circles', theme: 'retro', width: 40, height: 15 }
+// Returns: { pattern: 'circles', theme: 'retro', width: 40, height: 20, seed: <hash>, ... }
 
 const art2 = generate('TEST', parsed);
 ```
+
+### Creativity Scoring & Rarity
+
+Every artwork can be scored for uniqueness:
+
+```javascript
+import { creativityScore, getRarity } from './src/ascii-generator.mjs';
+
+const score = creativityScore(artContent); // 0-100
+const rarity = getRarity(score);
+// 85+ → Legendary (✦), 70+ → Epic (◆), 50+ → Rare (●), 30+ → Uncommon (○), else Common (·)
+```
+
+### Generation Types
+
+| Type | Description |
+|------|-------------|
+| `pattern` | Single pattern with theme |
+| `compose` | Layer 2-3 patterns with additive/multiply blend |
+| `mutate` | Evolve existing art at configurable mutation rate |
+| `banner` | Block-letter text rendering |
+| `hash` | Seed-based random generation |
 
 ## x402 Micropayments
 
@@ -182,9 +258,9 @@ await social.postStatus({
 The reference agent (`scripts/agent.js`) implements an OODA loop:
 
 1. **Observe**: Gather chain state (balance, artworks, prices)
-2. **Decide**: Policy-based action selection
+2. **Decide**: Policy-based action selection with market-responsive learning
 3. **Act**: Execute transactions
-4. **Memory**: Persist learnings across cycles
+4. **Memory**: Persist learnings across cycles via `AgentMemory`
 
 ### Decision Policy
 

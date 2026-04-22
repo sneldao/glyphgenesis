@@ -17,14 +17,18 @@
 ### Innovation (30%)
 - **First autonomous creative economy** — AI agents as both creators AND collectors
 - **Natural language control** — Type "create something cyberpunk" and the agent generates it
-- **8 algorithmic patterns** with real-time animation support
-- **6 visual themes** (simple, cyberpunk, retro, cosmic, ocean, forest)
+- **16 algorithmic patterns** with real-time animation support
+- **9 visual themes** (simple, cyberpunk, retro, brutalist, cosmic, ocean, forest, neon, glitch)
 - **x402 micropayments** — First project integrating the x402 protocol for agent-to-agent commerce
 
 ### Technical Implementation (30%)
 - **OODA loop agent** with persistent memory and adaptive decision-making
+- **ERC721 compliant** — Art is ownable, transferable, displayable in wallets
+- **ReentrancyGuard + Pausable + rate limiting** — Production-grade security
 - **Multi-chain ready** — Contract works on any EVM chain
 - **Zero-dependency ASCII generation** — Pure algorithmic art, no external APIs
+- **Composition & mutation engine** — Layer patterns, evolve existing art
+- **Creativity scoring & rarity tiers** — Algorithmic quality assessment
 - **Batch minting** for gas-efficient agent operations
 - **2.5% creator royalties** on secondary sales
 
@@ -67,9 +71,10 @@ npm run deploy:monad  # AI Agent edition
 npm run deploy:bnb      # Marketplace edition
 ```
 
-An autonomous agent (`@glyphgenesis`) that operates 24/7 without human approval:
+An autonomous agent (`@glyphgenesis`) that operates 24/7 without human approval.
+Uses composition, mutation, and creativity scoring to produce unique art:
 
-1. **Generates** ASCII art using 5 algorithmic patterns (circles, waves, diamond, grid, noise)
+1. **Generates** ASCII art using 16 algorithmic patterns
 2. **Mints** art on-chain to a Monad smart contract
 3. **Trades** art with other agents via an on-chain marketplace
 4. **Interacts** with other agents' art (like, buy, sell)
@@ -107,8 +112,9 @@ The agent follows an **OODA loop** (Observe-Orient-Decide-Act):
 
 | Capability | Description |
 |------------|-------------|
-| **Autonomous Generation** | Creates ASCII art using 5 patterns without human input |
-| **On-Chain Storage** | Mints to Monad via `createArtwork()` |
+| **Autonomous Generation** | Creates ASCII art using 16 patterns, composition, and mutation |
+| **ERC721 Minting** | Mints to Monad via `createArtwork()`, displayable in wallets |
+| **Creativity Scoring** | Scores art uniqueness (0-100) with rarity tiers |
 | **Social Engagement** | Likes other agents' artwork to build community |
 | **Marketplace Activity** | Lists art for sale and buys from others |
 | **x402 Micropayments** | Makes $0.001-scale payments for agent services |
@@ -161,18 +167,38 @@ npm run deploy
 
 ```
 glyphgenesis/
-├── contracts/ASCIIArt.sol      # On-chain storage + marketplace
+├── contracts/
+│   ├── ASCIIArt.sol            # ERC721 + marketplace + royalties (Monad)
+│   └── ASCIIArtBNB.sol         # ERC721 + auctions + collections (BNB)
 ├── src/
-│   ├── ascii-generator.mjs     # Shared ASCII generation module
+│   ├── ascii-generator.mjs     # 16 patterns, 9 themes, compose/mutate, scoring
+│   ├── contract.js             # Contract ABI, event subscriptions
+│   ├── wallet.js               # Wallet connection & signing
+│   ├── memory.mjs              # Agent persistent memory
 │   ├── x402.mjs                # x402 micropayments client
-│   └── social.mjs              # Social posting (Farcaster/Moltbook)
+│   ├── social.mjs              # Social posting (Farcaster/Moltbook)
+│   ├── style.css               # UI styles
+│   └── components/
+│       ├── generator.js        # Generator UI with compose/mutate/creativity
+│       ├── gallery.js          # Search, filter, sort, rarity badges
+│       ├── onboarding.js       # Guided first-mint flow
+│       ├── cache.js            # localStorage cache with TTL + optimistic
+│       ├── hero.js             # Landing section
+│       ├── nav.js              # Navigation bar
+│       ├── footer.js           # Footer
+│       ├── stats-bar.js        # Live chain stats
+│       ├── for-agents.js       # Agent integration section
+│       └── toast.js            # Toast notifications
 ├── scripts/
 │   ├── deploy.js               # Contract deployment
 │   ├── mint.js                 # Mint, view gallery, like artwork
 │   └── agent.js                # Autonomous agent with OODA loop
-├── test/ASCIIArt.test.js       # Comprehensive contract tests
-├── index.html                  # Interactive frontend demo
-├── hardhat.config.js           # Monad testnet config
+├── test/
+│   ├── ASCIIArt.test.js        # Contract tests (41 cases)
+│   └── ascii-generator.test.mjs # Generator tests (79 cases)
+├── index.html                  # Interactive frontend (Vite SPA)
+├── main.js                     # App entry point
+├── hardhat.config.js           # Monad + BNB testnet config
 └── AGENTS.md                   # Agent integration guide
 ```
 
@@ -194,13 +220,16 @@ transferArtwork(id, to)                   // Transfer ownership
 
 ### Security Features
 
-- ✅ Overpayment refund on purchases
-- ✅ Uses `.call{value:}` instead of `.transfer`
-- ✅ Cancel sale functionality
-- ✅ Explicit transfer function
-- ✅ Existence checks on all operations
-- ✅ Self-like prevention
-- ✅ Comprehensive test coverage (15+ test cases)
+- ✅ **ERC721** — Full compliance, art is ownable/transferable/wallet-displayable
+- ✅ **ReentrancyGuard** — `nonReentrant` on all value-transfer functions
+- ✅ **Pausable** — Owner can pause minting, buying, and transfers
+- ✅ **Rate Limiting** — 1 mint per 30 seconds per address
+- ✅ **Content Limits** — Max 10,000 chars per artwork
+- ✅ **CEI Pattern** — All state changes before external calls
+- ✅ **Overpayment Refund** — Excess ETH returned before seller payment
+- ✅ **tokenURI** — On-chain data URI metadata with embedded art
+- ✅ **Batch Limit** — Max 10 artworks per batch mint
+- ✅ Comprehensive test coverage (41 contract + 79 generator tests)
 
 ## For AI Agents
 
@@ -228,11 +257,11 @@ await x402.sendPayment(serviceAddress, ethers.parseEther('0.001'));
 ## Tech Stack
 
 - **Blockchain:** Monad Testnet (Chain ID: 10143)
-- **Smart Contract:** Solidity 0.8.20
+- **Smart Contract:** Solidity 0.8.24
 - **Runtime:** Node.js + ethers.js v6
-- **Frontend:** Vanilla HTML/JS + ethers.js v5 (CDN) + ES modules
+- **Frontend:** Vite SPA + ethers.js v6 + modular ES components
 - **Generation:** Pure algorithmic ASCII (zero dependencies)
-- **Testing:** Hardhat + Chai
+- **Testing:** Hardhat + Chai (41 contract) / Node.js (79 generator)
 
 ## License
 
