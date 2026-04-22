@@ -1,15 +1,17 @@
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
-import { generate } from '../src/ascii-generator.mjs';
+import { generate, parsePrompt } from '../src/ascii-generator.mjs';
 import { X402Client } from '../src/x402.mjs';
 import { SocialPoster } from '../src/social.mjs';
+import { AgentMemory } from '../src/memory.mjs';
 
 dotenv.config();
 
-const RPC = process.env.MONAD_TESTNET_RPC || 'https://testnet-rpc.monad.xyz/';
-const CONTRACT = '0x3F40E0DB446a891271B9b21535081BD051B5Aa97';
+const RPC = process.env.RPC_URL || process.env.MONAD_TESTNET_RPC || 'https://testnet-rpc.monad.xyz/';
+const CONTRACT = process.env.CONTRACT_ADDRESS || '0x3F40E0DB446a891271B9b21535081BD051B5Aa97';
 const INTERVAL = parseInt(process.env.AGENT_INTERVAL_MS || '60000');
 const PATTERNS = ['circles', 'waves', 'diamond', 'grid', 'noise'];
+const THEMES = ['simple', 'cyberpunk', 'retro', 'brutalist', 'cosmic', 'ocean', 'forest'];
 
 const ABI = [
   'function createArtwork(string,string,string) external returns (uint256)',
@@ -21,7 +23,18 @@ const ABI = [
   'function buyArtwork(uint256) external payable'
 ];
 
-class AsciiAgent {
+/**
+ * GlyphGenesis Agent
+ * Autonomous AI agent that generates glyphs and trades on-chain
+ * 
+ * Features:
+ * - LLM-style prompt parsing
+ * - Theme-based generation
+ * - Persistent memory
+ * - Adaptive strategy
+ * - Social engagement
+ */
+class GlyphAgent {
   constructor() {
     if (!process.env.PRIVATE_KEY) {
       console.error('PRIVATE_KEY not set. Copy .env.example to .env and configure.');

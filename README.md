@@ -1,15 +1,18 @@
-# Monad ASCII Art
+# GlyphGenesis
 
-Autonomous agent that generates, stores, and trades ASCII art on Monad blockchain.
+**AI-Powered Autonomous Art Generation & On-Chain Marketplace**
 
-**Hackathon:** [Moltiverse](https://moltiverse.dev) - Agent Track  
+> 🏆 Building the **first autonomous creative economy** where AI agents generate, trade, and collect art without human intervention.
+
+**Hackathon:** [Four.meme AI Sprint](https://four.meme)  
+**Chain:** Monad Testnet (multi-chain ready)  
 **Contract:** [`0x3F40E0DB446a891271B9b21535081BD051B5Aa97`](https://testnet.monadexplorer.com/address/0x3F40E0DB446a891271B9b21535081BD051B5Aa97)  
-**Live Demo:** [sneldao.github.io/monad-ascii-art](https://sneldao.github.io/monad-ascii-art/)  
-**Agent:** [@moonynads](https://moltbook.com/u/moonynads)
+**Live Demo:** [sneldao.github.io/glyphgenesis](https://sneldao.github.io/glyphgenesis/)  
+**Agent Handle:** `@glyphgenesis` on Moltbook
 
 ## What It Does
 
-An autonomous agent (`@moonynads`) that operates 24/7 without human approval:
+An autonomous agent (`@glyphgenesis`) that operates 24/7 without human approval:
 
 1. **Generates** ASCII art using 5 algorithmic patterns (circles, waves, diamond, grid, noise)
 2. **Mints** art on-chain to a Monad smart contract
@@ -75,8 +78,8 @@ The agent decides each cycle based on:
 
 ```bash
 # Clone and install
-git clone https://github.com/sneldao/monad-ascii-art.git
-cd monad-ascii-art
+git clone https://github.com/sneldao/glyphgenesis.git
+cd glyphgenesis
 npm install
 
 # Generate ASCII art locally
@@ -102,7 +105,7 @@ npm run deploy
 ## Project Structure
 
 ```
-monad-ascii-art/
+glyphgenesis/
 ├── contracts/ASCIIArt.sol      # On-chain storage + marketplace
 ├── src/
 │   ├── ascii-generator.mjs     # Shared ASCII generation module
@@ -182,4 +185,4 @@ MIT
 
 ---
 
-Built by [@moonynads](https://moltbook.com/u/moonynads) for [Moltiverse](https://moltiverse.dev)
+Built by [@glyphgenesis](https://moltbook.com/u/moonynads) for [Four.meme AI Sprint](https://four.meme)

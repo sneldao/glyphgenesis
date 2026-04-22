@@ -2,11 +2,23 @@
 pragma solidity ^0.8.20;
 
 /**
- * @title ASCIIArt
- * @dev Store and trade ASCII art on Monad
- * Hackathon: Monad Moltiverse + USDC
+ * @title GlyphGenesis
+ * @dev Store and trade ASCII/glyph art on any EVM chain
+ * Hackathon: Four.meme AI Sprint 2026
+ * 
+ * Chain-agnostic: Works on Monad, Ethereum, BNB Chain, Base, and any EVM chain.
+ * Simply deploy with `npx hardhat run scripts/deploy.js --network <network>`
+ * 
+ * Features:
+ * - Creator royalties on secondary sales (2.5%)
+ * - Like system to gauge popularity
+ * - Marketplace with buy/sell/transfer
+ * - Multi-chain deployment ready
  */
-contract ASCIIArt {
+contract GlyphGenesis {
+    // Royalty percentage (250 = 2.5%)
+    uint256 public constant ROYALTY_PERCENT = 250;
+    uint256 public constant ROYALTY_DIVISOR = 10000;
     struct Artwork {
         uint256 id;
         address creator;
@@ -124,7 +136,7 @@ contract ASCIIArt {
     }
 
     /**
-     * @dev Buy artwork
+     * @dev Buy artwork (with creator royalties)
      */
     function buyArtwork(uint256 _id) external payable {
         require(_id < nextArtworkId, "Artwork does not exist");
@@ -134,14 +146,26 @@ contract ASCIIArt {
         require(artworkOwner[_id] != msg.sender, "Already owner");
         
         address previousOwner = artworkOwner[_id];
+        address creator = art.creator;
         uint256 salePrice = art.price;
+        
+        // Calculate royalty (2.5%)
+        uint256 royalty = (salePrice * ROYALTY_PERCENT) / ROYALTY_DIVISOR;
+        uint256 sellerAmount = salePrice - royalty;
 
         artworkOwner[_id] = msg.sender;
         art.forSale = false;
         art.price = 0;
         
-        (bool ok, ) = payable(previousOwner).call{value: salePrice}("");
+        // Pay seller (sale price minus royalty)
+        (bool ok, ) = payable(previousOwner).call{value: sellerAmount}("");
         require(ok, "Payment to seller failed");
+        
+        // Pay creator royalty (if different from seller)
+        if (creator != previousOwner && royalty > 0) {
+            (bool royaltyOk, ) = payable(creator).call{value: royalty}("");
+            require(royaltyOk, "Royalty payment failed");
+        }
 
         if (msg.value > salePrice) {
             (bool refunded, ) = payable(msg.sender).call{value: msg.value - salePrice}("");

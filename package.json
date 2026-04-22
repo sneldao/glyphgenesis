@@ -1,7 +1,7 @@
 {
-  "name": "monad-ascii-art",
-  "version": "1.0.0",
-  "description": "Autonomous ASCII art generation and on-chain marketplace on Monad",
+  "name": "glyphgenesis",
+  "version": "2.0.0",
+  "description": "AI-powered autonomous art generation and on-chain marketplace for AI agents — chain-agnostic",
   "type": "module",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
@@ -11,7 +11,15 @@
     "agent": "node scripts/agent.js",
     "test": "node test/ascii-generator.test.mjs && echo 'Run hardhat test for contract tests'"
   },
-  "keywords": ["monad", "ascii-art", "blockchain", "agentic-commerce", "moltiverse"],
+  "keywords": [
+    "ai-agent",
+    "art-generation",
+    "glyph",
+    "ascii-art",
+    "blockchain",
+    "agentic-commerce",
+    "four-meme"
+  ],
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.4.0",

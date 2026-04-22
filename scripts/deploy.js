@@ -1,29 +1,28 @@
 import hre from "hardhat";
 
 async function main() {
-  console.log("Deploying ASCIIArt contract to Monad Testnet...");
+  console.log("Deploying GlyphGenesis contract...");
   console.log("Chain ID:", (await hre.ethers.provider.getNetwork()).chainId);
   
   const [deployer] = await hre.ethers.getSigners();
   console.log("Deploying with address:", deployer.address);
   
   const balance = await hre.ethers.provider.getBalance(deployer.address);
-  console.log("Balance:", hre.ethers.formatEther(balance), "MON");
+  console.log("Balance:", hre.ethers.formatEther(balance), "ETH");
   
-  // Deploy ASCIIArt contract
-  const ASCIIArt = await hre.ethers.getContractFactory("ASCIIArt");
-  const asciiArt = await ASCIIArt.deploy();
+  // Deploy GlyphGenesis contract
+  const GlyphGenesis = await hre.ethers.getContractFactory("GlyphGenesis");
+  const contract = await GlyphGenesis.deploy();
   
-  await asciiArt.waitForDeployment();
+  await contract.waitForDeployment();
   
-  const address = await asciiArt.getAddress();
-  console.log("\n✅ ASCIIArt deployed to:", address);
-  console.log("Explorer:", `https://testnet.monadexplorer.com/address/${address}`);
+  const address = await contract.getAddress();
+  console.log("\n✅ GlyphGenesis deployed to:", address);
   
-  // Create a test artwork
-  console.log("\nCreating test artwork...");
+  // Create a genesis artwork
+  console.log("\nCreating genesis artwork...");
   const art = `╔══════════════════════════════════════════╗
-║ MONAD                                    ║
+║ GLYPHGENESIS                              ║
 ╟──────────────────────────────────────────╢
 ║            .....ooooooooo.....           ║
 ║           ....ooooooooooooo....          ║
@@ -33,21 +32,21 @@ async function main() {
 ║          ...oooOOOO@@@OOOOooo...         ║
 ╚══════════════════════════════════════════╝`;
 
-  const tx = await asciiArt.createArtwork(
+  const tx = await contract.createArtwork(
     art,
-    "Monad ASCII - Agentic Commerce",
-    "circles pattern, monad theme"
+    "Genesis - Glyph #1",
+    "First glyph in the genesis collection"
   );
   
   await tx.wait();
-  console.log("✅ Test artwork created!");
+  console.log("✅ Genesis artwork created!");
   
   console.log("\n📊 Contract Summary:");
+  console.log("- Contract: GlyphGenesis");
   console.log("- Address:", address);
-  console.log("- Network: Monad Testnet");
-  console.log("- Chain ID: 10143");
+  console.log("- Chain ID:", (await hre.ethers.provider.getNetwork()).chainId);
   console.log("- Deployer:", deployer.address);
-  console.log("- Initial artwork: Created");
+  console.log("\n🚀 Ready for AI agents to mint, trade, and create!");
 }
 
 main()

@@ -5,7 +5,7 @@ import { generate } from '../src/ascii-generator.mjs';
 dotenv.config();
 
 const RPC = process.env.MONAD_TESTNET_RPC || 'https://testnet-rpc.monad.xyz/';
-const CONTRACT = '0x3F40E0DB446a891271B9b21535081BD051B5Aa97';
+const CONTRACT = process.env.CONTRACT_ADDRESS || '0x3F40E0DB446a891271B9b21535081BD051B5Aa97';
 
 const ABI = [
   'function createArtwork(string,string,string) external returns (uint256)',
@@ -32,7 +32,7 @@ function getContract(needsSigner = false) {
 const commands = {
   async mint() {
     const pattern = process.argv[3] || 'circles';
-    const title = process.argv[4] || `ASCII Art - ${pattern}`;
+    const title = process.argv[4] || `Glyph - ${pattern}`;
     const art = generate(title, { type: 'pattern', pattern, width: 40, height: 15 });
 
     const contract = getContract(true);
