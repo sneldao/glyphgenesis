@@ -369,25 +369,40 @@
         
         .action-buttons {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 10px;
             margin-bottom: 20px;
         }
         
         .action-btn {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.15);
             color: white;
-            padding: 12px;
-            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 16px;
+            border: 2px solid rgba(255,255,255,0.25);
             border-radius: 10px;
             cursor: pointer;
             font-weight: bold;
+            font-size: 0.9rem;
             transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         .action-btn:hover:not(:disabled) {
             background: rgba(255,255,255,0.3);
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .action-btn:active:not(:disabled) {
+            transform: translateY(0);
         }
 
         .mint-btn {
@@ -479,20 +494,44 @@
         .loading {
             text-align: center;
             padding: 40px;
-            opacity: 0.6;
+            opacity: 0.8;
+            color: rgba(255,255,255,0.7);
         }
 
-        .status-message {
-            background: rgba(255,255,255,0.2);
-            padding: 15px;
+        .loading .spinner {
+            width: 30px;
+            height: 30px;
+            border-width: 3px;
+            margin-bottom: 15px;
+        }
+
+        .error {
+            background: rgba(244, 67, 54, 0.3);
+            padding: 20px;
             border-radius: 10px;
-            margin-top: 15px;
             text-align: center;
         }
 
-        .success { background: rgba(76, 175, 80, 0.3); }
-        .error { background: rgba(244, 67, 54, 0.3); }
-        .warning { background: rgba(255, 152, 0, 0.3); }
+        .error button {
+            margin-top: 10px;
+            background: rgba(244, 67, 54, 0.5);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .error button:hover {
+            background: rgba(244, 67, 54, 0.7);
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.6;
+            font-style: italic;
+        }
         
         .agent-onboarding {
             background: rgba(255,100,100,0.2);
@@ -595,16 +634,37 @@
             .two-column { grid-template-columns: 1fr; }
         }
 
+        @media (max-width: 992px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
         @media (max-width: 768px) {
-            h1 { font-size: 2rem; }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+            h3 { font-size: 1.1rem; }
             .controls { grid-template-columns: 1fr; }
-            body { padding: 15px; }
-            .wallet-btn { padding: 12px 20px; font-size: 1rem; }
-            .cta-btn { padding: 15px; font-size: 1rem; }
-            .output { min-height: 200px; font-size: 0.8rem; }
+            body { padding: 12px; }
+            .wallet-btn { padding: 12px 18px; font-size: 0.95rem; }
+            .cta-btn { padding: 14px; font-size: 0.95rem; }
+            .output { min-height: 180px; font-size: 0.75rem; line-height: 1.3; }
             .gallery-grid { grid-template-columns: 1fr; }
-            .two-column { gap: 20px; }
-            .stat-number { font-size: 1.8rem; }
+            .two-column { gap: 15px; }
+            .stat-number { font-size: 1.6rem; }
+            .stat-label { font-size: 0.8rem; }
+            .agent-panel { padding: 15px; }
+            .interaction-cards { grid-template-columns: 1fr; }
+            .quick-start { flex-direction: column; }
+            .toast-container { left: 10px; right: 10px; max-width: none; }
+            .toast { font-size: 0.9rem; padding: 12px 15px; }
+        }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 1.5rem; }
+            .tag { font-size: 0.75rem; padding: 4px 8px; }
+            .btn { padding: 10px 15px; font-size: 0.85rem; }
+            .action-btn { width: 100%; margin: 5px 0; }
+            .agent-badge { font-size: 0.8rem; padding: 8px 12px; }
         }
 
         /* Loading Spinner */
@@ -1078,14 +1138,26 @@
         function generateArt() {
             const prompt = document.getElementById('prompt').value || 'MONAD';
             const pattern = document.getElementById('pattern').value;
-            const art = window.AsciiGenerator.generate(prompt, { 
-                type: 'pattern', 
-                pattern, 
-                width: 40, 
-                height: 15,
-                framed: true 
-            });
-            document.getElementById('output').textContent = art;
+            const output = document.getElementById('output');
+            
+            // Show loading state
+            output.innerHTML = '<span class="spinner"></span>Generating ASCII art...';
+            
+            try {
+                const art = window.AsciiGenerator.generate(prompt, { 
+                    type: 'pattern', 
+                    pattern, 
+                    width: 40, 
+                    height: 15,
+                    framed: true 
+                });
+                output.textContent = art;
+                showToast('Art generated successfully!', 'success');
+            } catch (error) {
+                console.error(error);
+                output.textContent = 'Failed to generate art. Please try again.';
+                showToast(`Generation failed: ${error.message}`, 'error');
+            }
         }
 
         async function connectWallet() {
@@ -1229,7 +1301,11 @@
 
             } catch (error) {
                 console.error(error);
-                document.getElementById('galleryContent').innerHTML = '<div class="error">Failed to load gallery. Please try again.</div>';
+                document.getElementById('galleryContent').innerHTML = `
+                    <div class="error">
+                        Failed to load gallery from blockchain.<br>
+                        <button onclick="loadGallery()">🔄 Try Again</button>
+                    </div>`;
                 showToast('Failed to load gallery from blockchain', 'error', 'loadGallery()');
             }
         }
