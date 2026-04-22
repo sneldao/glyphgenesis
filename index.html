@@ -900,6 +900,17 @@
                         <option value="noise">Noise (Random)</option>
                     </select>
                 </div>
+                <div>
+                    <label for="theme">Theme:</label>
+                    <select id="theme">
+                        <option value="simple">Simple</option>
+                        <option value="cyberpunk">Cyberpunk</option>
+                        <option value="retro">Retro 80s</option>
+                        <option value="cosmic">Cosmic</option>
+                        <option value="ocean">Ocean</option>
+                        <option value="forest">Forest</option>
+                    </select>
+                </div>
             </div>
             <button onclick="generateArt()">🎨 Generate ASCII Art</button>
             
@@ -1138,6 +1149,7 @@
         function generateArt() {
             const prompt = document.getElementById('prompt').value || 'MONAD';
             const pattern = document.getElementById('pattern').value;
+            const theme = document.getElementById('theme').value || 'simple';
             const output = document.getElementById('output');
             
             // Show loading state
@@ -1147,12 +1159,13 @@
                 const art = window.AsciiGenerator.generate(prompt, { 
                     type: 'pattern', 
                     pattern, 
+                    theme,
                     width: 40, 
                     height: 15,
                     framed: true 
                 });
                 output.textContent = art;
-                showToast('Art generated successfully!', 'success');
+                showToast(`Art generated with ${theme} theme!`, 'success');
             } catch (error) {
                 console.error(error);
                 output.textContent = 'Failed to generate art. Please try again.';

@@ -133,11 +133,17 @@ function generateBanner(text, style = 'simple') {
 }
 
 // Pattern generators
-function generatePattern(type, width = 40, height = 20, time = 0) {
+function generatePattern(type, width = 40, height = 20, time = 0, charSet = null) {
+  // Default char sets for density levels 0-3 (least to most dense)
+  const defaultChars = [' ', '.', 'o', 'O', '@'];
+  const chars = charSet || defaultChars;
+  const getChar = (density) => chars[Math.min(density, chars.length - 1)] || ' ';
+  
   const patterns = {
     waves: (x, y, t) => {
       const wave = Math.sin(x * 0.3 + t) * 5 + Math.sin(y * 0.2) * 3;
-      return wave > 0 ? '~' : '-';
+      const density = Math.max(0, Math.min(4, Math.floor((wave + 10) / 5)));
+      return getChar(density);
     },
     
     circles: (x, y, t) => {
@@ -147,11 +153,12 @@ function generatePattern(type, width = 40, height = 20, time = 0) {
       // Animate the circles
       const animatedDist = dist - (t * 2) % 10;
       const normalized = Math.abs(animatedDist) / Math.min(width, height);
-      if (normalized < 0.2) return '@';
-      if (normalized < 0.4) return 'O';
-      if (normalized < 0.6) return 'o';
-      if (normalized < 0.8) return '.';
-      return ' ';
+      let density = 0;
+      if (normalized < 0.2) density = 4;
+      else if (normalized < 0.4) density = 3;
+      else if (normalized < 0.6) density = 2;
+      else if (normalized < 0.8) density = 1;
+      return getChar(density);
     },
     
     diamond: (x, y, t) => {
@@ -161,24 +168,27 @@ function generatePattern(type, width = 40, height = 20, time = 0) {
       // Pulsing effect
       const pulse = Math.sin(t * 0.5) * 3;
       const adjusted = dist - pulse;
-      if (adjusted < 5) return '#';
-      if (adjusted < 10) return '+';
-      if (adjusted < 15) return '.';
-      return ' ';
+      let density = 0;
+      if (adjusted < 5) density = 4;
+      else if (adjusted < 10) density = 3;
+      else if (adjusted < 15) density = 2;
+      return getChar(density);
     },
     
     grid: (x, y, t) => {
-      if (x % 5 === 0 || y % 3 === 0) return '+';
-      return ' ';
+      if (x % 5 === 0 && y % 3 === 0) return getChar(4);
+      if (x % 5 === 0 || y % 3 === 0) return getChar(2);
+      return getChar(0);
     },
     
     noise: (x, y, t) => {
       const seed = x * 12.9898 + y * 78.233 + t * 0.1;
       const rand = (Math.sin(seed) * 43758.5453) % 1;
-      if (rand > 0.7) return '#';
-      if (rand > 0.4) return '+';
-      if (rand > 0.2) return '.';
-      return ' ';
+      let density = 0;
+      if (rand > 0.7) density = 4;
+      else if (rand > 0.4) density = 3;
+      else if (rand > 0.2) density = 2;
+      return getChar(density);
     },
     
     spiral: (x, y, t) => {
@@ -189,10 +199,11 @@ function generatePattern(type, width = 40, height = 20, time = 0) {
       const dist = Math.sqrt(dx*dx + dy*dy);
       const angle = Math.atan2(dy, dx);
       const spiral = Math.sin(dist * 0.3 - angle * 2 + t * 0.5);
-      if (spiral > 0.5) return '●';
-      if (spiral > 0) return '○';
-      if (spiral > -0.5) return '◌';
-      return ' ';
+      let density = 0;
+      if (spiral > 0.5) density = 4;
+      else if (spiral > 0) density = 3;
+      else if (spiral > -0.5) density = 2;
+      return getChar(density);
     },
     
     heart: (x, y, t) => {
@@ -203,10 +214,11 @@ function generatePattern(type, width = 40, height = 20, time = 0) {
       const dy = (y - centerY) / (height * 0.2) + 0.5;
       const heart = Math.pow(dx*dx + dy*dy - 1, 3) - dx*dx*dy*dy*dy;
       const pulse = Math.sin(t) * 0.1;
-      if (heart < pulse) return '♥';
-      if (heart < 0.1) return '❤';
-      if (heart < 0.3) return '♡';
-      return ' ';
+      let density = 0;
+      if (heart < pulse) density = 4;
+      else if (heart < 0.1) density = 3;
+      else if (heart < 0.3) density = 2;
+      return getChar(density);
     },
     
     star: (x, y, t) => {
@@ -218,11 +230,12 @@ function generatePattern(type, width = 40, height = 20, time = 0) {
       const angle = Math.atan2(dy, dx);
       // Star burst pattern
       const star = Math.abs(Math.sin(angle * 5 + t * 0.5)) * (20 - dist * 0.5);
-      if (dist < 2) return '★';
-      if (star > 8) return '✦';
-      if (star > 5) return '✧';
-      if (star > 2) return '·';
-      return ' ';
+      let density = 0;
+      if (dist < 2) density = 4;
+      else if (star > 8) density = 4;
+      else if (star > 5) density = 3;
+      else if (star > 2) density = 2;
+      return getChar(density);
     }
   };
 
@@ -313,7 +326,9 @@ function generate(prompt, options = {}) {
     art = generateBanner(prompt, style);
   } else if (type === 'pattern') {
     const time = options.time || 0;
-    art = generatePattern(pattern, width, height, time);
+    // Use theme-based character set if specified
+    const charSet = theme && CHARS[theme] ? CHARS[theme] : CHARS.detailed;
+    art = generatePattern(pattern, width, height, time, charSet);
   } else if (type === 'hash') {
     const hash = prompt.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
     art = generateFromHash(hash, width, height);
