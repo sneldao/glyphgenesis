@@ -21,22 +21,26 @@ async function init() {
     const main = document.createElement('main');
     main.id = 'main';
 
-    main.appendChild(renderHero());
-    main.appendChild(renderStatsBar());
-    main.appendChild(renderHowItWorks());
+    appendSection(main, renderHero, 'Hero');
+    appendSection(main, renderStatsBar, 'Stats');
+    appendSection(main, renderHowItWorks, 'Protocol');
     main.appendChild(createDivider());
-    main.appendChild(renderGenerator());
+    appendSection(main, renderGenerator, 'Generator');
     main.appendChild(createDivider());
-    main.appendChild(renderGallery());
+    appendSection(main, renderGallery, 'Gallery');
     main.appendChild(createDivider());
-    main.appendChild(renderAgentPanel());
+    appendSection(main, renderAgentPanel, 'Agent panel');
     main.appendChild(createDivider());
-    main.appendChild(renderForAgents());
+    appendSection(main, renderForAgents, 'For agents');
     main.appendChild(createDivider());
-    main.appendChild(renderOnboarding());
+    appendSection(main, renderOnboarding, 'Onboarding');
 
     app.appendChild(main);
-    app.appendChild(renderFooter());
+    try {
+        app.appendChild(renderFooter());
+    } catch (error) {
+        console.error('Footer render failed:', error);
+    }
 
     setupListeners();
 
@@ -86,6 +90,26 @@ async function init() {
 
     // Expose cleanup for SPA navigation (if needed)
     window.__glyphGenesis = { unsubscribe, resetOnboarding };
+}
+
+function appendSection(parent, factory, label) {
+    try {
+        parent.appendChild(factory());
+    } catch (error) {
+        console.error(`${label} render failed:`, error);
+        parent.appendChild(renderSectionError(label));
+    }
+}
+
+function renderSectionError(label) {
+    const section = document.createElement('section');
+    section.className = 'section section-error';
+    section.innerHTML = `
+        <span class="section-label">// ${label}</span>
+        <h2 class="section-title">${label} <span>Unavailable</span></h2>
+        <div class="error-box">This section failed to render. Please refresh the page.</div>
+    `;
+    return section;
 }
 
 function createDivider() {

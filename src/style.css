@@ -536,6 +536,9 @@ nav {
     max-width: 14ch;
 }
 .section-title span { color: var(--accent); }
+.section-error .error-box {
+    margin-top: 1rem;
+}
 .divider {
     border: none;
     border-top: 1px solid var(--border);

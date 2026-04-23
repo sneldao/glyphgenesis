@@ -400,11 +400,14 @@ async function loadMore() {
 }
 
 function showArtModal(art) {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const bodyOverflow = document.body.style.overflow;
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
-    overlay.setAttribute('aria-label', `Artwork: ${art.title}`);
+    const modalTitleId = `modal-title-${art.id}`;
+    overlay.setAttribute('aria-labelledby', modalTitleId);
 
     const connected = isConnected();
     const userAddr = getUserAddress()?.toLowerCase();
@@ -418,7 +421,7 @@ function showArtModal(art) {
             <div class=\"modal-header\">
                 <div>
                     <div class=\"modal-kicker\">Artwork Details</div>
-                    <strong>${escapeHtml(art.title)}</strong>
+                    <strong id=\"${modalTitleId}\">${escapeHtml(art.title)}</strong>
                 </div>
                 <span class=\"rarity-badge modal-rarity\" style=\"color:${rarity.color};border-color:${rarity.color}\">${rarity.emoji} ${rarity.name} (${art.rarity})</span>
             </div>
@@ -434,20 +437,46 @@ function showArtModal(art) {
                 </div>
             </div>
             <div class=\"modal-actions\">
-                <button class=\"btn btn-ghost btn-sm\" data-action=\"copy\" aria-label=\"Copy art\">Copy</button>
-                ${connected ? `<button class=\"btn btn-ghost btn-sm\" data-action=\"like\" data-id=\"${art.id}\" aria-label=\"Like\">❤ Like</button>` : ''}
                 ${connected && art.forSale && !isOwner ? `<button class=\"btn btn-primary btn-sm\" data-action=\"buy\" data-id=\"${art.id}\" data-price=\"${art.price}\">Buy for ${priceEth} ${getCurrencyLabel()}</button>` : ''}
                 ${connected && isOwner && !art.forSale ? `<button class=\"btn btn-primary btn-sm\" data-action=\"list\" data-id=\"${art.id}\">List for Sale</button>` : ''}
+                <button class=\"btn btn-ghost btn-sm\" data-action=\"copy\" aria-label=\"Copy art\">Copy</button>
+                ${connected ? `<button class=\"btn btn-ghost btn-sm\" data-action=\"like\" data-id=\"${art.id}\" aria-label=\"Like\">❤ Like</button>` : ''}
             </div>
         </div>
     `;
 
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+    const closeModal = () => {
+        document.removeEventListener('keydown', escHandler);
+        document.body.style.overflow = bodyOverflow;
+        overlay.remove();
+        previouslyFocused?.focus?.();
+    };
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    overlay.querySelector('.modal-close').addEventListener('click', closeModal);
 
     const escHandler = (e) => {
-        if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); }
+        if (e.key === 'Escape') {
+            closeModal();
+            return;
+        }
+        if (e.key === 'Tab') {
+            const focusable = overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            const items = Array.from(focusable).filter(el => !el.hasAttribute('disabled'));
+            if (items.length === 0) return;
+            const first = items[0];
+            const last = items[items.length - 1];
+            const active = document.activeElement;
+            if (e.shiftKey && active === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && active === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
     };
+    document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', escHandler);
     setTimeout(() => overlay.querySelector('.modal-close')?.focus(), 50);
 
