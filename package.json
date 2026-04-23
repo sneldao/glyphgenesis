@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "generate": "node -e \"import { generate } from './src/ascii-generator.mjs'; console.log(generate('MONAD', { type: 'pattern', pattern: 'circles' }))\"",
     "deploy:monad": "npx hardhat run scripts/deploy.js --network monadTestnet",
-    "deploy:bnb": "npx hardhat run scripts/deploy.js --network bnbTestnet",
+    "deploy:bnb": "npx hardhat run scripts/deploy-bnb.js --network bnbTestnet",
     "mint": "node scripts/mint.js",
     "agent": "node scripts/agent.js",
     "test": "node test/ascii-generator.test.mjs && echo 'Run hardhat test for contract tests'"

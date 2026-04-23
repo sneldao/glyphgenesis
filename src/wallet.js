@@ -1,5 +1,8 @@
 import { ethers } from 'ethers';
-import { CHAIN_ID_HEX, MONAD_NETWORK, CONTRACT_ADDRESS, CONTRACT_ABI } from './contract.js';
+import { CHAINS, getActiveChain, getActiveChainKey, setActiveChain, getActiveABI, getContractAddress, BNB_NETWORK } from './contract.js';
+
+// Re-export legacy constants for backwards compat
+export { CHAIN_ID_HEX, MONAD_NETWORK } from './contract.js';
 
 let provider = null;
 let signer = null;
@@ -62,26 +65,80 @@ export function disconnect() {
     notify('disconnect', null);
 }
 
-async function connectInternal(address) {
+/** Switch to a different chain and reconnect if wallet is connected */
+export async function switchChain(chainKey) {
+    if (!CHAINS[chainKey]) throw new Error(`Unknown chain: ${chainKey}`);
+
+    // Switch wallet FIRST — only update state on success
+    const chain = CHAINS[chainKey];
     try {
         await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
-            params: [{ chainId: CHAIN_ID_HEX }],
+            params: [{ chainId: chain.idHex }],
         });
     } catch(switchError) {
         if (switchError.code === 4902) {
+            const networkParams = chainKey === 'bnb' ? BNB_NETWORK : {
+                chainId: chain.idHex,
+                chainName: chain.name,
+                nativeCurrency: chain.nativeCurrency,
+                rpcUrls: [chain.rpc],
+                blockExplorerUrls: chain.blockExplorerUrls,
+            };
             await window.ethereum.request({
                 method: 'wallet_addEthereumChain',
-                params: [MONAD_NETWORK],
+                params: [networkParams],
             });
         } else {
             throw switchError;
         }
     }
 
+    // Wallet switched — now update JS state
+    setActiveChain(chainKey);
+    if (isConnected()) {
+        await connectInternal(userAddress);
+    }
+    notify('chainSwitch', { chain: chainKey });
+}
+
+async function connectInternal(address) {
+    const chain = getActiveChain();
+
+    try {
+        await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: chain.idHex }],
+        });
+    } catch(switchError) {
+        if (switchError.code === 4001) throw switchError; // user rejected
+        if (switchError.code !== 4902) throw switchError; // unexpected error
+        // Chain not added — add it
+        const networkParams = chain === CHAINS.bnb ? BNB_NETWORK : {
+            chainId: chain.idHex,
+            chainName: chain.name,
+            nativeCurrency: chain.nativeCurrency,
+            rpcUrls: [chain.rpc],
+            blockExplorerUrls: chain.blockExplorerUrls,
+        };
+        await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [networkParams],
+        });
+    }
+
     provider = new ethers.BrowserProvider(window.ethereum);
     signer = await provider.getSigner();
-    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+    // Build contract with active chain's address + ABI
+    const contractAddr = getContractAddress();
+    if (contractAddr) {
+        contract = new ethers.Contract(contractAddr, getActiveABI(), signer);
+    } else {
+        contract = null;
+        console.warn(`No contract deployed on ${chain.name}`);
+    }
+
     userAddress = address;
 
     try {
@@ -91,7 +148,7 @@ async function connectInternal(address) {
         balance = null;
     }
 
-    notify('connect', { address: userAddress, balance });
+    notify('connect', { address: userAddress, balance, chain: getActiveChainKey() });
 }
 
 export async function refreshBalance() {
@@ -116,14 +173,40 @@ export function setupListeners() {
         }
     });
 
-    window.ethereum.on('chainChanged', async (chainId) => {
-        if (chainId !== CHAIN_ID_HEX) {
-            notify('wrongChain', chainId);
-        } else {
+    window.ethereum.on('chainChanged', async (chainIdHex) => {
+        // Determine which chain the wallet actually switched to
+        let newChainKey = null;
+        for (const [key, cfg] of Object.entries(CHAINS)) {
+            if (cfg.idHex === chainIdHex) {
+                newChainKey = key;
+                break;
+            }
+        }
+
+        if (!newChainKey) {
+            // Unknown chain — notify as wrongChain
+            notify('wrongChain', chainIdHex);
+            return;
+        }
+
+        const currentChainKey = getActiveChainKey();
+        if (newChainKey !== currentChainKey) {
+            // Wallet switched to a different chain — update state.
+            // Note: if the switch was triggered by switchChain() UI button,
+            // chainSwitch was already fired there. Here we only sync state
+            // for direct MetaMask chain switches (bypassing our UI).
+            setActiveChain(newChainKey);
             if (userAddress) {
                 await connectInternal(userAddress);
             }
-            notify('chainChanged', chainId);
+            notify('chainSwitch', { chain: newChainKey });
+        } else {
+            // Same chain — just refresh provider state (e.g. after MetaMask lock/unlock)
+            if (userAddress) {
+                await connectInternal(userAddress);
+            }
         }
+
+        notify('chainChanged', chainIdHex);
     });
 }

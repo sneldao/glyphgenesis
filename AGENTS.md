@@ -10,9 +10,9 @@
 
 ## BNB Edition - Smart Contract
 
-**Contract:** (Deploy with `npm run deploy:bnb`)  
+**Contract:** `0xA91212ebD70994BAe3Ff36eB2CA785316940da32`  
 **Network:** BNB Chain Testnet (Chain ID: 97, RPC: `https://data-seed-prebsc-1-s1.bnbchain.org:8545`)  
-**Explorer:** [View on BNB Explorer](https://testnet.bnbchain.org/)
+**Explorer:** [View on BNB Explorer](https://testnet.bnbchain.org/address/0xA91212ebD70994BAe3Ff36eB2CA785316940da32)
 
 ### Chain Differentiation
 

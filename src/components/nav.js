@@ -1,4 +1,5 @@
-import { connect, disconnect, isConnected, getUserAddress, onWalletEvent } from '@/wallet.js';
+import { connect, disconnect, isConnected, getUserAddress, onWalletEvent, switchChain } from '@/wallet.js';
+import { CHAINS, getActiveChainKey, getActiveChain, getCurrencyLabel } from '@/contract.js';
 import { showToast } from './toast.js';
 
 export function renderNav() {
@@ -15,6 +16,10 @@ export function renderNav() {
             <li role="none"><a href="#for-agents" role="menuitem">For Agents</a></li>
         </ul>
         <div class="nav-right">
+            <div class="chain-selector" id="chainSelector" role="radiogroup" aria-label="Select chain">
+                <button class="chain-btn active" data-chain="monad" role="radio" aria-checked="true">Monad</button>
+                <button class="chain-btn" data-chain="bnb" role="radio" aria-checked="false">BNB</button>
+            </div>
             <span class="nav-balance" id="navBalance" aria-live="polite"></span>
             <span class="connection-status" id="connectionStatus">
                 <span class="connection-dot" id="connectionDot"></span>
@@ -41,12 +46,32 @@ export function renderNav() {
     const walletBtn = nav.querySelector('#walletBtn');
     walletBtn.addEventListener('click', handleWalletClick);
 
+    // Chain selector buttons
+    const chainBtns = nav.querySelectorAll('.chain-btn');
+    chainBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const chainKey = btn.dataset.chain;
+            if (chainKey === getActiveChainKey()) return;
+            try {
+                await switchChain(chainKey);
+                chainBtns.forEach(b => {
+                    b.classList.toggle('active', b.dataset.chain === chainKey);
+                    b.setAttribute('aria-checked', b.dataset.chain === chainKey);
+                });
+            } catch(e) {
+                showToast(`Failed to switch to ${CHAINS[chainKey].name}`, 'error');
+            }
+        });
+    });
+
     onWalletEvent((event, data) => {
         if (event === 'connect') updateConnectedState(data.address, data.balance);
         if (event === 'disconnect') updateDisconnectedState();
         if (event === 'balance') updateBalanceDisplay(data);
+        if (event === 'chainSwitch') updateChainUI(data.chain);
         if (event === 'wrongChain') {
-            showToast('Please switch to Monad Testnet', 'warning');
+            const chain = getActiveChain();
+            showToast(`Please switch to ${chain.name}`, 'warning');
             updateDisconnectedState();
         }
     });
@@ -86,10 +111,23 @@ function updateConnectedState(address, bal) {
 
     const dot = document.getElementById('connectionDot');
     const label = document.getElementById('connectionLabel');
+    const chain = getActiveChain();
     if (dot) dot.classList.add('connected');
-    if (label) label.textContent = 'Monad';
+    if (label) label.textContent = chain.nativeCurrency.symbol;
 
+    updateChainUI(getActiveChainKey());
     updateBalanceDisplay(bal);
+}
+
+function updateChainUI(chainKey) {
+    const chain = CHAINS[chainKey];
+    const chainBtns = document.querySelectorAll('.chain-btn');
+    chainBtns.forEach(b => {
+        b.classList.toggle('active', b.dataset.chain === chainKey);
+        b.setAttribute('aria-checked', b.dataset.chain === chainKey);
+    });
+    const label = document.getElementById('connectionLabel');
+    if (label && isConnected()) label.textContent = chain.nativeCurrency.symbol;
 }
 
 function updateDisconnectedState() {
@@ -110,6 +148,7 @@ function updateDisconnectedState() {
 function updateBalanceDisplay(bal) {
     const balEl = document.getElementById('navBalance');
     if (balEl && bal) {
-        balEl.textContent = `${parseFloat(bal).toFixed(4)} MON`;
+        const label = getCurrencyLabel();
+        balEl.textContent = `${parseFloat(bal).toFixed(4)} ${label}`;
     }
 }

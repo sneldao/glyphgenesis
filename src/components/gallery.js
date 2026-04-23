@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
-import { AGENT_ADDRESS, getReadContract, EXPLORER_TX, parseContractError } from '@/contract.js';
-import { isConnected, getContract, getUserAddress, onWalletEvent } from '@/wallet.js';
+import { AGENT_ADDRESS, getReadContract, EXPLORER_TX, parseContractError, getCurrencyLabel, getActiveChainKey } from '@/contract.js';
+import { isConnected, getContract, getUserAddress, onWalletEvent, switchChain } from '@/wallet.js';
 import { showToast } from './toast.js';
 import { artworkCache, statsCache } from './cache.js';
 import { creativityScore, getRarity } from '@/ascii-generator.mjs';
@@ -78,6 +78,14 @@ export function renderGallery() {
     onWalletEvent((event) => {
         if (event === 'connect' || event === 'disconnect') {
             if (allArtworks.length > 0) renderFilteredArtworks();
+        }
+        if (event === 'chainSwitch') {
+            // Clear caches and reload gallery for the new chain
+            loadedCount = 0;
+            allArtworks = [];
+            artworkCache.invalidateAll();
+            statsCache.invalidateAll();
+            loadGallery();
         }
     });
 
@@ -237,14 +245,14 @@ function renderGalleryItems(artworks) {
                     <div class="gallery-meta-details">
                         ID: #${art.id} · ${shortCreator} · ${date}
                         ${art.isAgent ? '<br><span class="agent-badge-sm">🤖 AGENT</span>' : ''}
-                        ${art.forSale ? `<br><span class="for-sale-badge">💰 For Sale: ${priceEth} MON</span>` : ''}
+                        ${art.forSale ? `<br><span class="for-sale-badge">💰 For Sale: ${priceEth} ${getCurrencyLabel()}</span>` : ''}
                         ${art.likes > 0 ? `<br><small style="color:var(--muted)">❤ ${art.likes} like${art.likes !== 1 ? 's' : ''}</small>` : ''}
                     </div>
                 </div>
                 <div class="gallery-actions">
                     <button class="btn btn-ghost btn-sm" data-action="expand" aria-label="View full artwork">Expand</button>
                     ${connected ? `<button class="btn btn-ghost btn-sm" data-action="like" data-id="${art.id}" aria-label="Like this artwork">❤ Like</button>` : ''}
-                    ${connected && art.forSale && !isOwner ? `<button class="btn btn-ghost btn-sm" data-action="buy" data-id="${art.id}" data-price="${art.price}" style="color:var(--accent3);border-color:var(--accent3);" aria-label="Buy this artwork for ${priceEth} MON">💰 Buy ${priceEth} MON</button>` : ''}
+                    ${connected && art.forSale && !isOwner ? `<button class="btn btn-ghost btn-sm" data-action="buy" data-id="${art.id}" data-price="${art.price}" style="color:var(--accent3);border-color:var(--accent3);" aria-label="Buy this artwork for ${priceEth} ${getCurrencyLabel()}">💰 Buy ${priceEth} ${getCurrencyLabel()}</button>` : ''}
                 </div>
             </div>
         `;
@@ -367,14 +375,14 @@ function showArtModal(art) {
                 <span class="rarity-badge" style="color:${rarity.color};border-color:${rarity.color}">${rarity.emoji} ${rarity.name} (${art.rarity})</span><br>
                 ID: #${art.id}<br>
                 Creator: ${art.creator.slice(0, 6)}...${art.creator.slice(-4)} ${art.isAgent ? '<span class="agent-badge-sm">🤖 AGENT</span>' : ''}<br>
-                ${art.forSale ? `Price: <span style="color:var(--accent3)">${priceEth} MON</span><br>` : ''}
+                ${art.forSale ? `Price: <span style="color:var(--accent3)">${priceEth} ${getCurrencyLabel()}</span><br>` : ''}
                 Likes: ${art.likes}<br>
                 Created: ${new Date(art.timestamp * 1000).toLocaleString()}
             </div>
             <div class="modal-actions">
                 <button class="btn btn-ghost btn-sm" data-action="copy" aria-label="Copy art">Copy</button>
                 ${connected ? `<button class="btn btn-ghost btn-sm" data-action="like" data-id="${art.id}" aria-label="Like">❤ Like</button>` : ''}
-                ${connected && art.forSale && !isOwner ? `<button class="btn btn-outline btn-sm" data-action="buy" data-id="${art.id}" data-price="${art.price}">Buy for ${priceEth} MON</button>` : ''}
+                ${connected && art.forSale && !isOwner ? `<button class="btn btn-outline btn-sm" data-action="buy" data-id="${art.id}" data-price="${art.price}">Buy for ${priceEth} ${getCurrencyLabel()}</button>` : ''}
                 ${connected && isOwner && !art.forSale ? `<button class="btn btn-outline btn-sm" data-action="list" data-id="${art.id}">List for Sale</button>` : ''}
             </div>
         </div>
@@ -409,7 +417,7 @@ function showArtModal(art) {
         try {
             const price = ethers.parseEther('0.01');
             const tx = await contract.setForSale(Number(e.target.dataset.id), price);
-            showToast('Listing for 0.01 MON...', 'info');
+            showToast(`Listing for 0.01 ${getCurrencyLabel()}...`, 'info');
             await tx.wait();
             showToast('Listed for sale!', 'success');
             overlay.remove();

@@ -126,7 +126,7 @@ contract GlyphGenesisBNB is ERC721, ReentrancyGuard, Pausable, Ownable {
         // ERC721 mint (internal, no external call)
         _mint(msg.sender, artworkId);
 
-        if (_collectionId > 0 && _collectionId < nextCollectionId) {
+        if (_collectionId < nextCollectionId) {
             collections[_collectionId].artworkIds.push(artworkId);
         }
 
