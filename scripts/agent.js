@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import { generate, parsePrompt } from '../src/ascii-generator.mjs';
 import { AIGenerator } from '../src/ai-generator.mjs';
 import { X402Client } from '../src/x402.mjs';
-import { SocialPoster } from '../src/social.mjs';
 import { AgentMemory } from '../src/memory.mjs';
 
 dotenv.config();
