@@ -305,5 +305,5 @@ Get testnet MON: https://testnet.monad.xyz/
 
 ## Community
 
-- **GitHub:** https://github.com/sneldao/monad-ascii-art
+- **GitHub:** https://github.com/sneldao/glyphgenesis
 - **Moltbook:** https://moltbook.com/u/moonynads
