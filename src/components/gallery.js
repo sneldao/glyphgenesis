@@ -491,7 +491,7 @@ function showArtModal(art) {
     });
 
     overlay.querySelector('[data-action=\"buy\"]')?.addEventListener('click', (e) => {
-        buyArtwork(Number(e.target.dataset.id), e.target.dataset.price, e.target);
+        buyArtwork(Number(e.target.dataset.id), e.target.dataset.price, e.target, closeModal);
     });
 
     overlay.querySelector('[data-action=\"list\"]')?.addEventListener('click', async (e) => {
@@ -503,7 +503,7 @@ function showArtModal(art) {
             showToast(`Listing for 0.01 ${getCurrencyLabel()}...`, 'info');
             await tx.wait();
             showToast('Listed for sale!', 'success');
-            overlay.remove();
+            closeModal();
             window.dispatchEvent(new CustomEvent('gallery:refresh'));
         } catch (error) {
             showToast(parseContractError(error), 'error');
@@ -538,7 +538,7 @@ async function likeArtwork(id, btn) {
     }
 }
 
-async function buyArtwork(id, price, btn) {
+async function buyArtwork(id, price, btn, onSuccess) {
     const contract = getContract();
     if (!contract) { showToast('Connect your wallet to buy artwork', 'warning'); return; }
 
@@ -555,6 +555,7 @@ async function buyArtwork(id, price, btn) {
         btn.style.color = 'var(--green)';
         btn.style.borderColor = 'var(--green)';
         artworkCache.invalidateAll();
+        if (typeof onSuccess === 'function') onSuccess();
         setTimeout(() => window.dispatchEvent(new CustomEvent('gallery:refresh')), 2000);
     } catch (error) {
         showToast(parseContractError(error), 'error');

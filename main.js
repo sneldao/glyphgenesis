@@ -5,12 +5,15 @@ import { renderHero } from './src/components/hero.js';
 import { renderStatsBar, fetchTotalArtworks } from './src/components/stats-bar.js';
 import { renderHowItWorks } from './src/components/how-it-works.js';
 import { renderAgentPanel } from './src/components/agent-panel.js';
-import { renderGenerator } from './src/components/generator.js';
-import { renderGallery, loadGallery } from './src/components/gallery.js';
 import { renderForAgents } from './src/components/for-agents.js';
 import { renderFooter } from './src/components/footer.js';
 import { renderOnboarding, hasCompletedOnboarding, resetOnboarding } from './src/components/onboarding.js';
 import { subscribeToEvents } from './src/contract.js';
+import { runRuntimeSmokeChecks } from './src/health.js';
+
+let galleryReady = false;
+let galleryRefreshTimer = null;
+let pendingGalleryRefresh = false;
 
 async function init() {
     const app = document.getElementById('app');
@@ -25,9 +28,11 @@ async function init() {
     appendSection(main, renderStatsBar, 'Stats');
     appendSection(main, renderHowItWorks, 'Protocol');
     main.appendChild(createDivider());
-    appendSection(main, renderGenerator, 'Generator');
+    const generatorShell = renderLazySection('Generator', 'Interactive art tools load on demand.');
+    main.appendChild(generatorShell);
     main.appendChild(createDivider());
-    appendSection(main, renderGallery, 'Gallery');
+    const galleryShell = renderLazySection('Gallery', 'Live market data loads after the page shell.');
+    main.appendChild(galleryShell);
     main.appendChild(createDivider());
     appendSection(main, renderAgentPanel, 'Agent panel');
     main.appendChild(createDivider());
@@ -44,44 +49,37 @@ async function init() {
 
     setupListeners();
 
+    void hydrateGeneratorSection(generatorShell);
+    void hydrateGallerySection(galleryShell);
+
     const reconnected = await tryReconnect();
     if (reconnected) showToast('Wallet reconnected', 'info');
-
-    loadGallery();
 
     // Subscribe to real-time contract events
     const unsubscribe = subscribeToEvents({
         onArtworkCreated: ({ id, creator, title }) => {
             showToast(`New art minted: "${title}" (#${id})`, 'info');
-            // Refresh gallery on new mints
-            setTimeout(() => window.dispatchEvent(new CustomEvent('gallery:refresh')), 3000);
+            scheduleGalleryRefresh(3000);
+            fetchTotalArtworks();
         },
         onArtworkLiked: ({ id, liker }) => {
-            // Silently refresh stats (no toast for likes to avoid spam)
-            fetchTotalArtworks();
+            scheduleGalleryRefresh(1500);
         },
         onArtworkTransferred: ({ id, from, to }) => {
             showToast(`Art #${id} transferred!`, 'info');
-            setTimeout(() => window.dispatchEvent(new CustomEvent('gallery:refresh')), 2000);
+            scheduleGalleryRefresh(2000);
         },
         onArtworkPriceSet: ({ id, price }) => {
-            // Refresh gallery to show new price
-            setTimeout(() => window.dispatchEvent(new CustomEvent('gallery:refresh')), 2000);
+            scheduleGalleryRefresh(2000);
         },
         onTransfer: ({ from, to, tokenId }) => {
-            // ERC721 transfer event — refresh relevant data
-            fetchTotalArtworks();
+            scheduleGalleryRefresh(2000);
         },
     });
 
     // Auto-refresh intervals
-    setInterval(loadGallery, 60000);
     setInterval(fetchTotalArtworks, 60000);
     setInterval(refreshBalance, 30000);
-
-    // Auto-generate art once the richer experience is ready
-    const generateBtn = document.getElementById('generateBtn');
-    if (generateBtn && hasCompletedOnboarding()) generateBtn.click();
 
     // Track onboarding step completions
     window.addEventListener('mint:success', () => {
@@ -89,7 +87,7 @@ async function init() {
     });
 
     // Expose cleanup for SPA navigation (if needed)
-    window.__glyphGenesis = { unsubscribe, resetOnboarding };
+    window.__glyphGenesis = { unsubscribe, resetOnboarding, runSmokeChecks: runRuntimeSmokeChecks };
 }
 
 function appendSection(parent, factory, label) {
@@ -110,6 +108,63 @@ function renderSectionError(label) {
         <div class="error-box">This section failed to render. Please refresh the page.</div>
     `;
     return section;
+}
+
+function renderLazySection(label, description) {
+    const section = document.createElement('section');
+    section.className = 'section section-loading';
+    section.id = label.toLowerCase().replace(/\s+/g, '-');
+    section.setAttribute('aria-labelledby', `${section.id}-title`);
+    section.innerHTML = `
+        <span class="section-label">// Loading ${label}</span>
+        <h2 class="section-title" id="${section.id}-title">${label} <span>Loading</span></h2>
+        <p class="section-intro">${description}</p>
+        <div class="loading"><span class="spinner" aria-hidden="true"></span>Loading ${label.toLowerCase()}...</div>
+    `;
+    return section;
+}
+
+async function hydrateGeneratorSection(shell) {
+    try {
+        const { renderGenerator } = await import('./src/components/generator.js');
+        const section = renderGenerator();
+        shell.replaceWith(section);
+
+        if (hasCompletedOnboarding()) {
+            setTimeout(() => document.getElementById('generateBtn')?.click(), 0);
+        }
+    } catch (error) {
+        console.error('Generator lazy load failed:', error);
+        shell.replaceWith(renderSectionError('Generator'));
+    }
+}
+
+async function hydrateGallerySection(shell) {
+    try {
+        const { renderGallery, loadGallery } = await import('./src/components/gallery.js');
+        const section = renderGallery();
+        shell.replaceWith(section);
+        galleryReady = true;
+        pendingGalleryRefresh = false;
+        loadGallery();
+
+        setInterval(loadGallery, 60000);
+    } catch (error) {
+        console.error('Gallery lazy load failed:', error);
+        shell.replaceWith(renderSectionError('Gallery'));
+    }
+}
+
+function scheduleGalleryRefresh(delay = 2000) {
+    if (!galleryReady) {
+        pendingGalleryRefresh = true;
+        return;
+    }
+
+    if (galleryRefreshTimer) clearTimeout(galleryRefreshTimer);
+    galleryRefreshTimer = setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('gallery:refresh'));
+    }, delay);
 }
 
 function createDivider() {
