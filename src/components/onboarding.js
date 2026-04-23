@@ -27,9 +27,16 @@ function completeOnboarding() {
 const STEPS = [
     {
         title: 'Welcome to GlyphGenesis',
-        desc: 'Create, mint, and trade unique ASCII art on the blockchain. Let us get you started!',
+        desc: 'Create, mint, and trade unique ASCII art on the blockchain. We will get you set up in a few quick steps.',
         icon: '🎨',
         action: 'Next'
+    },
+    {
+        title: 'Connect Your Wallet',
+        desc: 'Connect MetaMask or another wallet to unlock the generator, minting, and marketplace actions.',
+        icon: '🔗',
+        action: 'Connect Wallet',
+        wallet: true
     },
     {
         title: 'Get Testnet Tokens',
@@ -37,13 +44,6 @@ const STEPS = [
         icon: '💧',
         action: 'Open Faucet',
         link: 'https://testnet.monad.xyz/'
-    },
-    {
-        title: 'Connect Your Wallet',
-        desc: 'Connect MetaMask or another wallet to interact with the blockchain.',
-        icon: '🔗',
-        action: 'Connect Wallet',
-        wallet: true
     },
     {
         title: 'Generate Your First Art',
@@ -56,10 +56,10 @@ const STEPS = [
         title: 'Mint It On-Chain',
         desc: 'Click Mint to permanently record your art on the blockchain. It is yours forever!',
         icon: '⛏️',
-        action: 'Got it!'
+        action: 'Finish Tour'
     },
     {
-        title: 'You are All Set!',
+        title: 'Explore the Marketplace',
         desc: 'Explore the gallery, like art from others, and trade on the marketplace.',
         icon: '🚀',
         action: 'Start Creating'
@@ -171,8 +171,8 @@ export function renderOnboarding() {
         }
     });
 
-    // Auto-advance if wallet is already connected (step 2 = connect wallet)
-    if (getOnboardingStep() === 2 && isConnected()) {
+    // Auto-advance if wallet is already connected (step 1 = connect wallet)
+    if (getOnboardingStep() === 1 && isConnected()) {
         setTimeout(() => {
             section.querySelector('#onboardingAction')?.click();
         }, 500);

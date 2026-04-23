@@ -1,4 +1,4 @@
-import { subscribeToEvents, getReadContract, AGENT_ADDRESS, getActiveChain } from '@/contract.js';
+import { getReadContract, AGENT_ADDRESS, getActiveChain } from '@/contract.js';
 import { showToast } from './toast.js';
 
 let tickerEvents = [];
@@ -10,44 +10,59 @@ export function renderHero() {
     section.className = 'hero';
     section.setAttribute('aria-label', 'Hero');
     section.innerHTML = `
-        <canvas id=\`heroCanvas\` aria-hidden=\`true\`></canvas>
-        <div class=\`hero-content\`>
-            <div class=\`hero-eyebrow\`>Autonomous Art <span id=\`heroChainLabel\`>on MON</span></div>
-            <h1 class=\`hero-title\`>
-                <span class=\`line1\`>GLYPH</span>
-                <span class=\`line2 glitch\` data-text=\`GENESIS\`>GENESIS</span>
-            </h1>
-            <p class=\`hero-sub\`>An autonomous AI agent that generates ASCII art and mints it on-chain \u2014 24/7, no human required.</p>
-            <div class=\`hero-cta\`>
-                <button class=\`btn btn-primary\` data-action=\`scroll-generator\`>Generate Art</button>
-                <button class=\`btn btn-outline\` data-action=\`scroll-gallery\`>View Gallery</button>
-                <a href=\`#\` id=\`heroContractLink\` target=\`_blank\` rel=\`noopener noreferrer\` class=\`btn btn-outline\`>Contract \u2197</a>
+        <canvas id="heroCanvas" aria-hidden="true"></canvas>
+        <div class="hero-content">
+            <div class="hero-eyebrow">
+                <span id="heroChainTag">Monad Testnet</span>
             </div>
-            <div class=\`hero-tags\`>
-                <span class=\`tag\`>#FourMemeAI</span>
-                <span class=\`tag\`>#AgenticCommerce</span>
-                <span class=\`tag\`>#AIArt</span>
-                <span class=\`tag\` id=\`heroChainTag\`>Monad Testnet</span>
+            <h1 class="hero-title">
+                <span class="line1">GLYPH</span>
+                <span class="line2 glitch" data-text="GENESIS">GENESIS</span>
+            </h1>
+            <p class="hero-sub">Generate unique ASCII art and mint it permanently on-chain. No approvals, no servers — just you, the chain, and your art.</p>
+            <div class="hero-cta">
+                <button class="btn btn-primary" data-action="scroll-generator">Create Artwork</button>
+                <button class="btn btn-outline" data-action="scroll-gallery">Explore Gallery</button>
+            </div>
+            <div class="hero-proof" id="heroProof" aria-label="Live stats">
+                <div class="proof-stat">
+                    <span class="proof-num" id="proofTotal">—</span>
+                    <span class="proof-label">On-Chain</span>
+                </div>
+                <div class="proof-divider" aria-hidden="true"></div>
+                <div class="proof-stat">
+                    <span class="proof-num" id="proofToday">—</span>
+                    <span class="proof-label">Minted Today</span>
+                </div>
+                <div class="proof-divider" aria-hidden="true"></div>
+                <div class="proof-stat">
+                    <span class="proof-num">16</span>
+                    <span class="proof-label">Pattern Types</span>
+                </div>
+                <div class="proof-divider" aria-hidden="true"></div>
+                <div class="proof-stat">
+                    <a href="#" id="heroContractLink" class="proof-contract" target="_blank" rel="noopener noreferrer">View Contract ↗</a>
+                </div>
             </div>
         </div>
         <!-- Live activity ticker -->
-        <div id=\`heroTicker\` class=\`hero-ticker\` aria-live=\`polite\` aria-label=\`Live activity feed\`>
-            <div class=\`ticker-label\`>
-                <span class=\`pulse-dot\` aria-hidden=\`true\`></span>
+        <div id="heroTicker" class="hero-ticker" aria-live="polite" aria-label="Live activity feed">
+            <div class="ticker-label">
+                <span class="pulse-dot" aria-hidden="true"></span>
                 LIVE
             </div>
-            <div class=\`ticker-track\` id=\`tickerTrack\`>
-                <div class=\`ticker-message\`>Loading activity...</div>
+            <div class="ticker-track" id="tickerTrack">
+                <div class="ticker-message">Loading activity...</div>
             </div>
-            <div class=\`ticker-counter\` id=\`tickerCounter\` aria-label=\`Total mints\`>0 mints</div>
+            <div class="ticker-counter" id="tickerCounter" aria-label="Total mints">0 mints</div>
         </div>
-        <div class=\`hero-scroll\` aria-hidden=\`true\`>Scroll</div>
+        <div class="hero-scroll" aria-hidden="true">Scroll</div>
     `;
 
-    section.querySelector('[data-action=\`scroll-generator\`]').addEventListener('click', () => {
+    section.querySelector('[data-action="scroll-generator"]').addEventListener('click', () => {
         document.getElementById('generator')?.scrollIntoView({ behavior: 'smooth' });
     });
-    section.querySelector('[data-action=\`scroll-gallery\`]').addEventListener('click', () => {
+    section.querySelector('[data-action="scroll-gallery"]').addEventListener('click', () => {
         document.getElementById('gallery')?.scrollIntoView({ behavior: 'smooth' });
     });
 
@@ -59,19 +74,18 @@ export function renderHero() {
     // Set chain-aware content after DOM is in place
     const chain = getActiveChain();
     const contractLink = document.getElementById('heroContractLink');
-    const chainLabel = document.getElementById('heroChainLabel');
     const chainTag = document.getElementById('heroChainTag');
     if (contractLink && chain.contractAddress) {
         contractLink.href = chain.explorerAddr(chain.contractAddress);
-    }
-    if (chainLabel) {
-        chainLabel.textContent = `on ${chain.nativeCurrency.symbol}`;
     }
     if (chainTag) {
         chainTag.textContent = `${chain.name}`;
     }
 
-    // Subscribe to live events and start ticker
+    // Load live proof stats into hero
+    loadHeroProofStats();
+
+    // Seed ticker from contract only — global events handled by main.js
     initLiveTicker();
     subscribeHeroEvents();
 
@@ -80,7 +94,7 @@ export function renderHero() {
 
 function initMatrixRain(canvas) {
     const ctx = canvas.getContext('2d');
-    const chars = '01\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u2591\u2592\u2593\u2588@#%&*+=-:.';
+    const chars = '01アイウエオカキクケコ░▒▓█@#%&*+=-:.';
     let cols, drops;
 
     function resize() {
@@ -114,17 +128,17 @@ async function subscribeHeroEvents() {
         const unsubscribe = subscribeToEvents({
             onArtworkCreated: ({ id, creator, title }) => {
                 const isAgent = creator.toLowerCase() === AGENT_ADDRESS?.toLowerCase();
-                const label = isAgent ? '\uD83E\uDD16 Agent minted' : '\u270F\uFE0F New mint';
+                const label = isAgent ? '🤖 Agent minted' : '✏️ New mint';
                 addTickerEvent({ label, text: title, id, isAgent, time: Date.now() });
-                showToast(`New art minted: \u201C${title}\u201D (#${id})`, 'info');
+                showToast(`New art minted: “${title}” (#${id})`, 'info');
                 // Refresh gallery
                 setTimeout(() => window.dispatchEvent(new CustomEvent('gallery:refresh')), 3000);
             },
             onArtworkLiked: ({ id }) => {
-                addTickerEvent({ label: '\u2764\uFE0F Liked', text: `#${id}`, time: Date.now() });
+                addTickerEvent({ label: '❤️ Liked', text: `#${id}`, time: Date.now() });
             },
             onArtworkTransferred: ({ id }) => {
-                addTickerEvent({ label: '\uD83D\uDD04 Transferred', text: `#${id}`, time: Date.now() });
+                addTickerEvent({ label: '🔄 Transferred', text: `#${id}`, time: Date.now() });
             },
         });
         window.__glyphGenesis = window.__glyphGenesis || {};
@@ -156,7 +170,7 @@ async function initLiveTicker() {
                     const [, , , title, , timestamp, , , likes] = art;
                     const isAgent = art[0].toLowerCase() === AGENT_ADDRESS?.toLowerCase();
                     tickerEvents.push({
-                        label: isAgent ? '\uD83E\uDD16 Agent minted' : '\u270F\uFE0F Minted',
+                        label: isAgent ? '🤖 Agent minted' : '✏️ Minted',
                         text: title,
                         id: Number(id),
                         likes: Number(likes),
@@ -183,7 +197,7 @@ function startTickerScroll() {
         const event = tickerEvents[tickerIndex];
         const track = document.getElementById('tickerTrack');
         if (track) {
-            track.innerHTML = `<div class=\`ticker-message\`><span class=\`ticker-action\`>${event.label}</span> \u201C${event.text}\u201D</div>`;
+            track.innerHTML = `<div class="ticker-message"><span class="ticker-action">${event.label}</span> “${event.text}”</div>`;
         }
     }, 3000);
 }
@@ -192,10 +206,42 @@ function updateTickerDisplay() {
     const track = document.getElementById('tickerTrack');
     if (!track || tickerEvents.length === 0) return;
     const event = tickerEvents[0];
-    track.innerHTML = `<div class=\`ticker-message\`><span class=\`ticker-action\`>${event.label}</span> \u201C${event.text}\u201D</div>`;
+    track.innerHTML = `<div class="ticker-message"><span class="ticker-action">${event.label}</span> “${event.text}”</div>`;
 }
 
 function updateCounter(total) {
     const counter = document.getElementById('tickerCounter');
     if (counter) counter.textContent = `${total} on-chain`;
+}
+
+// Load live stats into the hero proof strip
+async function loadHeroProofStats() {
+    const totalEl = document.getElementById('proofTotal');
+    const todayEl = document.getElementById('proofToday');
+    if (!totalEl && !todayEl) return;
+
+    try {
+        const contract = getReadContract();
+        const total = Number(await contract.totalArtworks());
+        if (totalEl) totalEl.textContent = total.toString();
+
+        // Calculate today's mints from recent artworks
+        if (todayEl && total > 0) {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const ids = await contract.getRecentArtworks(Math.min(total, 20));
+            let todayCount = 0;
+            for (const id of ids) {
+                try {
+                    const art = await contract.getArtwork(id);
+                    const ts = Number(art[5]) * 1000;
+                    if (ts >= todayStart.getTime()) todayCount++;
+                } catch { break; }
+            }
+            todayEl.textContent = todayCount.toString();
+        }
+    } catch (e) {
+        // Stats unavailable — leave placeholder dashes
+        console.warn('[Hero] Failed to load proof stats:', e.message);
+    }
 }

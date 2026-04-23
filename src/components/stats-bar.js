@@ -7,21 +7,21 @@ export function renderStatsBar() {
     bar.setAttribute('role', 'region');
     bar.setAttribute('aria-label', 'Platform statistics');
     bar.innerHTML = `
-        <div class=\"stat-item\">
-            <span class=\"stat-number green\" id=\"totalArtworks\" aria-label=\"Total artworks on-chain\">...</span>
-            <span class=\"stat-label\">Artworks On-Chain</span>
+        <div class="stat-item">
+            <span class="stat-number green" id="totalArtworks" aria-label="Total artworks on-chain">...</span>
+            <span class="stat-label">Artworks On-Chain</span>
         </div>
-        <div class=\"stat-item\">
-            <span class=\"stat-number cyan\" id=\"todayMints\" aria-label=\"Mints today\">...</span>
-            <span class=\"stat-label\">Mints Today</span>
+        <div class="stat-item">
+            <span class="stat-number cyan" id="todayMints" aria-label="Mints today">...</span>
+            <span class="stat-label">Mints Today</span>
         </div>
-        <div class=\"stat-item\">
-            <span class=\"stat-number purple\" id=\"totalLikes\" aria-label=\"Total likes on chain\">...</span>
-            <span class=\"stat-label\">Total Likes</span>
+        <div class="stat-item">
+            <span class="stat-number purple" id="totalLikes" aria-label="Total likes on chain">...</span>
+            <span class="stat-label">Total Likes</span>
         </div>
-        <div class=\"stat-item\">
-            <span class=\"stat-number amber\" aria-label=\"${PATTERN_LIST.length} pattern types available\">${PATTERN_LIST.length}</span>
-            <span class=\"stat-label\">Pattern Types</span>
+        <div class="stat-item">
+            <span class="stat-number amber" aria-label="${PATTERN_LIST.length} pattern types available">${PATTERN_LIST.length}</span>
+            <span class="stat-label">Pattern Types</span>
         </div>
     `;
 
@@ -34,10 +34,7 @@ export function renderStatsBar() {
 }
 
 export async function fetchTotalArtworks() {
-    try {
-        const contract = getReadContract();
-        return Number(await contract.totalArtworks());
-    } catch { return null; }
+    return fetchStats();
 }
 
 async function fetchStats() {
@@ -81,9 +78,12 @@ async function fetchStats() {
             }
             likesEl.textContent = totalLikes.toString();
         }
+
+        return total;
     } catch (e) {
         if (totalEl) totalEl.textContent = '?';
         if (todayEl) todayEl.textContent = '?';
         if (likesEl) likesEl.textContent = '?';
+        return null;
     }
 }

@@ -25,36 +25,15 @@ async function init() {
     main.appendChild(renderStatsBar());
     main.appendChild(renderHowItWorks());
     main.appendChild(createDivider());
-    main.appendChild(renderAgentPanel());
-    main.appendChild(createDivider());
     main.appendChild(renderGenerator());
-    main.appendChild(createDivider());
-
-    // Onboarding flow — shown between generator and gallery for new users
-    if (!hasCompletedOnboarding()) {
-        const onboardingSection = document.createElement('section');
-        onboardingSection.className = 'section onboarding-section';
-        onboardingSection.id = 'onboarding-wrapper';
-        onboardingSection.setAttribute('aria-labelledby', 'onboarding-title');
-        onboardingSection.innerHTML = `
-            <span class="section-label">// Getting Started</span>
-            <h2 class="section-title" id="onboarding-title">First Time <span>Here?</span></h2>
-        `;
-        onboardingSection.appendChild(renderOnboarding());
-        main.appendChild(onboardingSection);
-
-        // Listen for onboarding restart
-        window.addEventListener('onboarding:restart', () => {
-            const container = onboardingSection.querySelector('.onboarding-flow');
-            if (container) container.remove();
-            onboardingSection.appendChild(renderOnboarding());
-        });
-    }
-
     main.appendChild(createDivider());
     main.appendChild(renderGallery());
     main.appendChild(createDivider());
+    main.appendChild(renderAgentPanel());
+    main.appendChild(createDivider());
     main.appendChild(renderForAgents());
+    main.appendChild(createDivider());
+    main.appendChild(renderOnboarding());
 
     app.appendChild(main);
     app.appendChild(renderFooter());
@@ -96,9 +75,9 @@ async function init() {
     setInterval(fetchTotalArtworks, 60000);
     setInterval(refreshBalance, 30000);
 
-    // Auto-generate art on first load
+    // Auto-generate art once the richer experience is ready
     const generateBtn = document.getElementById('generateBtn');
-    if (generateBtn) generateBtn.click();
+    if (generateBtn && hasCompletedOnboarding()) generateBtn.click();
 
     // Track onboarding step completions
     window.addEventListener('mint:success', () => {

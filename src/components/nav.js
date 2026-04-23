@@ -6,14 +6,13 @@ export function renderNav() {
     const nav = document.createElement('nav');
     nav.setAttribute('aria-label', 'Main navigation');
     nav.innerHTML = `
-        <span class="nav-logo">GLYPH<span>GENESIS</span></span>
+        <a class="nav-logo" href="#main" aria-label="GlyphGenesis home">GLYPH<span>GENESIS</span></a>
         <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">\u2630</button>
-        <ul class="nav-links" role="menubar">
-            <li role="none"><a href="#how-it-works" role="menuitem">Protocol</a></li>
-            <li role="none"><a href="#agent" role="menuitem">Agent</a></li>
-            <li role="none"><a href="#generator" role="menuitem">Generate</a></li>
-            <li role="none"><a href="#gallery" role="menuitem">Gallery</a></li>
-            <li role="none"><a href="#for-agents" role="menuitem">For Agents</a></li>
+        <ul class="nav-links">
+            <li><a href="#how-it-works">Protocol</a></li>
+            <li><a href="#generator">Generate</a></li>
+            <li><a href="#gallery">Gallery</a></li>
+            <li><a href="#agent">Agent</a></li>
         </ul>
         <div class="nav-right">
             <div class="chain-selector" id="chainSelector" role="radiogroup" aria-label="Select chain">

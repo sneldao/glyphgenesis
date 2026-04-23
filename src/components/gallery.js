@@ -22,7 +22,7 @@ export function renderGallery() {
     section.innerHTML = `
         <span class=\"section-label\">// 04 — On-Chain Gallery</span>
         <h2 class=\"section-title\" id=\"gallery-title\">Live from the <span>Blockchain</span></h2>
-        <p style=\"color:var(--muted);font-size:.8rem;margin-bottom:1.5rem;\">Fetched via <code style=\"color:var(--accent2)\">getRecentArtworks()</code> &amp; <code style=\"color:var(--accent2)\">getArtwork()</code> — stored permanently on chain.</p>
+        <p class=\"section-intro gallery-intro\">Browse the newest on-chain pieces, filter by creator or market state, and open any artwork to inspect the full mint.</p>
 
         <div class=\"gallery-live-bar\" id=\"galleryLiveBar\">
             <div class=\"live-indicator\">
@@ -415,21 +415,29 @@ function showArtModal(art) {
     overlay.innerHTML = `
         <div class=\"modal\">
             <button class=\"modal-close\" aria-label=\"Close\">&times;</button>
+            <div class=\"modal-header\">
+                <div>
+                    <div class=\"modal-kicker\">Artwork Details</div>
+                    <strong>${escapeHtml(art.title)}</strong>
+                </div>
+                <span class=\"rarity-badge modal-rarity\" style=\"color:${rarity.color};border-color:${rarity.color}\">${rarity.emoji} ${rarity.name} (${art.rarity})</span>
+            </div>
             <pre>${escapeHtml(art.content)}</pre>
             <div class=\"modal-meta\">
-                <strong>${escapeHtml(art.title)}</strong><br>
-                <span class=\"rarity-badge\" style=\"color:${rarity.color};border-color:${rarity.color}\">${rarity.emoji} ${rarity.name} (${art.rarity})</span><br>
-                ID: #${art.id}<br>
-                Creator: ${shortAddress(art.creator)} ${art.isAgent ? '<span class=\"agent-badge-sm\">🤖 AGENT</span>' : ''}<br>
-                ${art.forSale ? `Price: <span style=\"color:var(--accent3)\">${priceEth} ${getCurrencyLabel()}</span><br>` : ''}
-                Likes: ${art.likes}<br>
-                Created: ${new Date(art.timestamp * 1000).toLocaleString()}
+                <div class=\"modal-chips\">
+                    <span>ID: #${art.id}</span>
+                    <span>Creator: ${shortAddress(art.creator)}</span>
+                    <span>Likes: ${art.likes}</span>
+                    <span>Created: ${new Date(art.timestamp * 1000).toLocaleString()}</span>
+                    ${art.isAgent ? '<span class=\"agent-badge-sm\">🤖 AGENT</span>' : ''}
+                    ${art.forSale ? `<span class=\"for-sale-badge\">💰 ${priceEth} ${getCurrencyLabel()}</span>` : ''}
+                </div>
             </div>
             <div class=\"modal-actions\">
                 <button class=\"btn btn-ghost btn-sm\" data-action=\"copy\" aria-label=\"Copy art\">Copy</button>
                 ${connected ? `<button class=\"btn btn-ghost btn-sm\" data-action=\"like\" data-id=\"${art.id}\" aria-label=\"Like\">❤ Like</button>` : ''}
-                ${connected && art.forSale && !isOwner ? `<button class=\"btn btn-outline btn-sm\" data-action=\"buy\" data-id=\"${art.id}\" data-price=\"${art.price}\">Buy for ${priceEth} ${getCurrencyLabel()}</button>` : ''}
-                ${connected && isOwner && !art.forSale ? `<button class=\"btn btn-outline btn-sm\" data-action=\"list\" data-id=\"${art.id}\">List for Sale</button>` : ''}
+                ${connected && art.forSale && !isOwner ? `<button class=\"btn btn-primary btn-sm\" data-action=\"buy\" data-id=\"${art.id}\" data-price=\"${art.price}\">Buy for ${priceEth} ${getCurrencyLabel()}</button>` : ''}
+                ${connected && isOwner && !art.forSale ? `<button class=\"btn btn-primary btn-sm\" data-action=\"list\" data-id=\"${art.id}\">List for Sale</button>` : ''}
             </div>
         </div>
     `;

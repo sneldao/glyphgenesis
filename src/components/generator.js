@@ -17,60 +17,60 @@ export function renderGenerator() {
     section.id = 'generator';
     section.setAttribute('aria-labelledby', 'generator-title');
     section.innerHTML = `
-        <span class=\"section-label\">// 03 \\u2014 Interactive Generator</span>
-        <h2 class=\"section-title\" id=\"generator-title\">Create <span>ASCII Art</span></h2>
-        <div class=\"generator-wrap\">
-            <div class=\"generator-controls\">
+        <span class="section-label">// 03 — Interactive Generator</span>
+        <h2 class="section-title" id="generator-title">Create <span>ASCII Art</span></h2>
+        <div class="generator-wrap">
+            <div class="generator-controls">
                 <div>
-                    <label class=\"field-label\" for=\"prompt\">Prompt / Text</label>
-                    <input type=\"text\" id=\"prompt\" placeholder=\"MONAD or 'cyberpunk waves 40x15'\" value=\"MONAD\" aria-describedby=\"prompt-hint\">
-                    <small id=\"prompt-hint\" style=\"color:var(--muted);font-size:.68rem;display:block;margin-top:5px;\">Try: \"cyber waves\", \"cosmic star animated\", \"diamond 50x20\"</small>
+                    <label class="field-label" for="prompt">Prompt / Text</label>
+                    <input type="text" id="prompt" placeholder="MONAD or 'cyberpunk waves 40x15'" value="MONAD" aria-describedby="prompt-hint">
+                    <small id="prompt-hint" style="color:var(--muted);font-size:.68rem;display:block;margin-top:5px;">Try: "cyber waves", "cosmic star animated", "diamond 50x20"</small>
                 </div>
                 <div>
-                    <label class=\"field-label\" for=\"genType\">Type</label>
-                    <select id=\"genType\" aria-label=\"Generation type\">
-                        <option value=\"pattern\">Pattern</option>
-                        <option value=\"compose\">Compose (Layered)</option>
-                        <option value=\"mutate\">Mutate (Evolve)</option>
-                        <option value=\"banner\">Banner (Text)</option>
+                    <label class="field-label" for="genType">Type</label>
+                    <select id="genType" aria-label="Generation type">
+                        <option value="pattern">Pattern</option>
+                        <option value="compose">Compose (Layered)</option>
+                        <option value="mutate">Mutate (Evolve)</option>
+                        <option value="banner">Banner (Text)</option>
                     </select>
                 </div>
                 <div>
-                    <label class=\"field-label\" for=\"pattern\">Pattern</label>
-                    <select id=\"pattern\" aria-label=\"Pattern type\">
-                        ${PATTERN_LIST.map(p => `<option value=\"${p.id}\">${p.name} \\u2014 ${p.desc}</option>`).join('')}
+                    <label class="field-label" for="pattern">Pattern</label>
+                    <select id="pattern" aria-label="Pattern type">
+                        ${PATTERN_LIST.map(p => `<option value="${p.id}">${p.name} — ${p.desc}</option>`).join('')}
                     </select>
                 </div>
                 <div>
-                    <label class=\"field-label\" for=\"theme\">Theme</label>
-                    <select id=\"theme\" aria-label=\"Visual theme\">
-                        ${THEME_LIST.map(t => `<option value=\"${t.id}\">${t.name}</option>`).join('')}
+                    <label class="field-label" for="theme">Theme</label>
+                    <select id="theme" aria-label="Visual theme">
+                        ${THEME_LIST.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
                     </select>
                 </div>
-                <div class=\"animate-row\">
-                    <label><input type=\"checkbox\" id=\"animateToggle\"> Animate</label>
-                    <div class=\"playback-btns\" id=\"playbackControls\">
-                        <button type=\"button\" id=\"playBtn\" aria-label=\"Play animation\">\\u25B6 Play</button>
-                        <button type=\"button\" id=\"pauseBtn\" aria-label=\"Pause animation\">\\u23F8 Pause</button>
-                        <span id=\"frameCounter\">Frame: 1</span>
+                <div class="animate-row">
+                    <label><input type="checkbox" id="animateToggle"> Animate</label>
+                    <div class="playback-btns" id="playbackControls">
+                        <button type="button" id="playBtn" aria-label="Play animation">▶ Play</button>
+                        <button type="button" id="pauseBtn" aria-label="Pause animation">⏸ Pause</button>
+                        <span id="frameCounter">Frame: 1</span>
                     </div>
                 </div>
-                <button type=\"button\" class=\"gen-btn\" id=\"generateBtn\">Generate</button>
-                <button type=\"button\" class=\"gen-btn outline\" id=\"mutateBtn\" title=\"Mutate current art for new variation\">\\u267B\\uFE0F Evolve</button>
-                <button type=\"button\" class=\"gen-btn outline\" id=\"randomizeBtn\">Randomize</button>
+                <button type="button" class="gen-btn" id="generateBtn">Generate</button>
+                <button type="button" class="gen-btn outline" id="mutateBtn" title="Mutate current art for new variation">♻️ Evolve</button>
+                <button type="button" class="gen-btn outline" id="randomizeBtn">Randomize</button>
             </div>
-            <div class=\"generator-output\">
-                <div class=\"output-label\" aria-hidden=\"true\">ASCII Output</div>
-                <div id=\"output\" role=\"img\" aria-label=\"Generated ASCII art output\">Click [ Generate ] to create your masterpiece...</div>
-                <div id=\"creativityScore\" class=\"creativity-score\" style=\"display:none;\"></div>
-                <div class=\"output-actions\">
-                    <button type=\"button\" class=\"btn btn-ghost\" id=\"copyBtn\" aria-label=\"Copy art to clipboard\">\\uD83D\\uDCCB Copy</button>
-                    <button type=\"button\" class=\"btn btn-ghost\" id=\"downloadBtn\" aria-label=\"Download art as text file\">\\uD83D\\uDCBE Download</button>
-                    <button type=\"button\" class=\"btn btn-ghost\" id=\"shareBtn\" aria-label=\"Share on social\">\\uD83D\\uDC26 Share</button>
-                    <button type=\"button\" class=\"btn btn-ghost\" id=\"shareCardBtn\" aria-label=\"Generate shareable card\">\\uD83D\\uDCC4 Share Card</button>
+            <div class="generator-output">
+                <div class="output-label" aria-hidden="true">ASCII Output</div>
+                <div id="output" role="img" aria-label="Generated ASCII art output">Click [ Generate ] to create your masterpiece...</div>
+                <div id="creativityScore" class="creativity-score" style="display:none;"></div>
+                <div class="output-actions">
+                    <button type="button" class="btn btn-ghost" id="copyBtn" aria-label="Copy art to clipboard">📋 Copy</button>
+                    <button type="button" class="btn btn-ghost" id="downloadBtn" aria-label="Download art as text file">💾 Download</button>
+                    <button type="button" class="btn btn-ghost" id="shareBtn" aria-label="Share on social">🐦 Share</button>
+                    <button type="button" class="btn btn-ghost" id="shareCardBtn" aria-label="Generate shareable card">📄 Share Card</button>
                 </div>
-                <button type=\"button\" class=\"btn btn-mint\" id=\"mintBtn\" disabled>Mint on ${getCurrencyLabel()} \\u2014 Connect Wallet First</button>
-                <div id=\"mintStatus\"></div>
+                <button type="button" class="btn btn-mint" id="mintBtn" disabled>Mint on ${getCurrencyLabel()} — Connect Wallet First</button>
+                <div id="mintStatus"></div>
             </div>
         </div>
     `;
@@ -107,7 +107,7 @@ function updateMintButton(connected) {
     const btn = document.getElementById('mintBtn');
     if (!btn) return;
     btn.disabled = !connected;
-    btn.textContent = connected ? 'Mint This Art on ' + getCurrencyLabel() : 'Mint on ' + getCurrencyLabel() + ' \\u2014 Connect Wallet First';
+    btn.textContent = connected ? 'Mint This Art on ' + getCurrencyLabel() : 'Mint on ' + getCurrencyLabel() + ' — Connect Wallet First';
 }
 
 function generateArt() {
@@ -198,8 +198,8 @@ function updateCreativityScore(art) {
     const rarity = getRarity(score);
     scoreEl.style.display = 'flex';
     scoreEl.innerHTML = `
-        <span class=\"rarity-badge\" style=\"color:${rarity.color};border-color:${rarity.color}\">${rarity.emoji} ${rarity.name}</span>
-        <span class=\"creativity-value\">Creativity: ${score}/100</span>
+        <span class="rarity-badge" style="color:${rarity.color};border-color:${rarity.color}">${rarity.emoji} ${rarity.name}</span>
+        <span class="creativity-value">Creativity: ${score}/100</span>
     `;
 }
 
@@ -258,7 +258,7 @@ function downloadArt() {
 }
 
 function shareOnTwitter() {
-    const text = encodeURIComponent('I just created ASCII art on GlyphGenesis! \\uD83C\\uDFA8\\n\\nTry it: https://sneldao.github.io/glyphgenesis/\\n\\n#FourMemeAI #AIArt');
+    const text = encodeURIComponent('I just created ASCII art on GlyphGenesis! 🎨\n\nTry it: https://sneldao.github.io/glyphgenesis/\n\n#FourMemeAI #AIArt');
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
 }
 
@@ -325,7 +325,7 @@ async function generateShareCard() {
     ctx.fillRect(0, 560, 800, 40);
     ctx.fillStyle = '#8896ab';
     ctx.font = '11px Courier New';
-    ctx.fillText(`${chain.name} \\u00B7 ${chain.explorerAddr(chain.contractAddress || '')}`, 20, 585);
+    ctx.fillText(`${chain.name} · ${chain.explorerAddr(chain.contractAddress || '')}`, 20, 585);
     ctx.fillStyle = '#06b6d4';
     ctx.fillText('glyphgenesis.xyz', 680, 585);
 
@@ -351,23 +351,23 @@ async function mintArt() {
     if (!art || art.startsWith('Click')) { showToast('Generate some art first!', 'warning'); return; }
 
     try {
-        if (mintBtn) { mintBtn.disabled = true; mintBtn.innerHTML = '<span class=\"spinner\" aria-hidden=\"true\"></span>Processing...'; }
-        if (statusDiv) statusDiv.innerHTML = '<div class=\"status-message loading\"><span class=\"spinner\" aria-hidden=\"true\"></span>Sending transaction to contract...</div>';
+        if (mintBtn) { mintBtn.disabled = true; mintBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>Processing...'; }
+        if (statusDiv) statusDiv.innerHTML = '<div class="status-message loading"><span class="spinner" aria-hidden="true"></span>Sending transaction to contract...</div>';
         showToast('Initiating mint transaction...', 'info');
 
         const tx = await contract.createArtwork(art, `${prompt} - ${pattern}`, `Generated with ${pattern} pattern`);
-        if (statusDiv) statusDiv.innerHTML = '<div class=\"status-message loading\"><span class=\"spinner\" aria-hidden=\"true\"></span>Mining transaction...</div>';
+        if (statusDiv) statusDiv.innerHTML = '<div class="status-message loading"><span class="spinner" aria-hidden="true"></span>Mining transaction...</div>';
 
         const receipt = await tx.wait();
         const explorerLink = EXPLORER_TX(receipt.hash);
-        if (statusDiv) statusDiv.innerHTML = `<div class=\"status-message success\">\u2713 Minted successfully! <a href=\"${explorerLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:var(--accent2);margin-left:8px;\">View TX \u2192</a></div>`;
+        if (statusDiv) statusDiv.innerHTML = `<div class="status-message success">✓ Minted successfully! <a href="${explorerLink}" target="_blank" rel="noopener noreferrer" style="color:var(--accent2);margin-left:8px;">View TX →</a></div>`;
         showToast('Artwork minted successfully!', 'success');
         window.dispatchEvent(new CustomEvent('gallery:refresh'));
         window.dispatchEvent(new CustomEvent('mint:success'));
     } catch (error) {
         console.error(error);
         const msg = parseContractError(error);
-        if (statusDiv) statusDiv.innerHTML = `<div class=\"status-message error\">\u2717 ${msg}</div>`;
+        if (statusDiv) statusDiv.innerHTML = `<div class="status-message error">✗ ${msg}</div>`;
         showToast(`Minting failed: ${msg}`, 'error');
     } finally {
         if (mintBtn) { mintBtn.disabled = false; mintBtn.textContent = 'Mint This Art on ' + getCurrencyLabel(); }

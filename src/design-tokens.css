@@ -1,0 +1,120 @@
+/* ─── GLYPHGENESIS DESIGN TOKENS ────────────────────────────────────────────
+   Single source of truth for all design decisions.
+   Import this file to ensure consistent spacing, color, and typography.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* === COLOR TOKENS === */
+:root {
+    /* Backgrounds */
+    --color-bg: #050508;
+    --color-surface: #0d0d14;
+    --color-surface2: #12121c;
+    --color-surface-hover: #18182a;
+
+    /* Borders */
+    --color-border: #1e1e2e;
+    --color-border-focus: #6d28d9;
+
+    /* Text */
+    --color-text: #e2e8f0;
+    --color-muted: #8896ab;
+    --color-subtle: #4a5568;
+
+    /* Accent palette — use these consistently throughout */
+    --color-accent: #7c3aed;      /* Primary — purple, buttons, highlights */
+    --color-accent-hover: #6d28d9;
+    --color-accent2: #06b6d4;     /* Secondary — cyan, links, hover states */
+    --color-accent3: #f59e0b;     /* Tertiary — amber, prices, warnings */
+    --color-green: #00ff41;       /* Success — mints, connected, positive */
+    --color-red: #ff2d55;         /* Error — failures, destructive */
+
+    /* Rarity colors */
+    --rarity-common: #8896ab;
+    --rarity-uncommon: #22c55e;
+    --rarity-rare: #06b6d4;
+    --rarity-epic: #a855f7;
+    --rarity-legendary: #f59e0b;
+}
+
+/* === SPACING SCALE === */
+/* Base unit: 4px. Use multiples: 0.25rem(1), 0.5rem(2), 0.75rem(3), 1rem(4),
+   1.25rem(5), 1.5rem(6), 2rem(8), 2.5rem(10), 3rem(12), 4rem(16), 5rem(20) */
+
+/* === TYPOGRAPHY === */
+:root {
+    --font-mono: 'Courier New', 'Consolas', monospace;
+    --font-size-xs: .62rem;     /* 10px — labels, tags, muted text */
+    --font-size-sm: .72rem;     /* 12px — body small, descriptions */
+    --font-size-base: .82rem;   /* 14px — body default */
+    --font-size-md: .95rem;     /* 16px — subheadings */
+    --font-size-lg: 1.2rem;     /* 20px — section titles small */
+    --font-size-xl: clamp(1.4rem, 4vw, 2.2rem); /* Section titles */
+    --font-size-hero: clamp(3rem, 10vw, 7rem);   /* Hero display */
+
+    --font-weight-normal: 400;
+    --font-weight-bold: 700;
+    --font-weight-black: 900;
+
+    --letter-spacing-tight: -.02em;
+    --letter-spacing-normal: 0;
+    --letter-spacing-wide: .08em;
+    --letter-spacing-wider: .15em;
+    --letter-spacing-widest: .3em;
+}
+
+/* === BORDERS & RADIUS === */
+:root {
+    --radius-sm: 2px;
+    --radius: 3px;
+    --radius-lg: 6px;
+    --radius-pill: 999px;
+
+    --border-width: 1px;
+}
+
+/* === SHADOWS === */
+:root {
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.3);
+    --shadow: 0 8px 24px rgba(0,0,0,.4);
+    --shadow-lg: 0 16px 40px rgba(0,0,0,.5);
+    --shadow-glow-accent: 0 0 20px rgba(124,58,237,.5);
+    --shadow-glow-accent2: 0 0 20px rgba(6,182,212,.3);
+    --shadow-glow-green: 0 0 12px rgba(0,255,65,.3);
+}
+
+/* === TRANSITIONS === */
+:root {
+    --transition: .2s ease;
+    --transition-fast: .12s ease;
+    --transition-slow: .35s ease;
+}
+
+/* === Z-INDEX SCALE === */
+:root {
+    --z-base: 0;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-overlay: 500;
+    --z-modal: 1000;
+    --z-toast: 2000;
+}
+
+/* === COMPONENT TOKENS === */
+:root {
+    /* Button */
+    --btn-height: 40px;
+    --btn-height-sm: 30px;
+    --btn-padding: 13px 28px;
+    --btn-padding-sm: 7px 13px;
+    --btn-font-size: .85rem;
+    --btn-font-weight: bold;
+
+    /* Card */
+    --card-padding: 1.2rem 1.5rem;
+    --card-padding-sm: .85rem 1rem;
+
+    /* Section */
+    --section-padding-y: 5rem;
+    --section-padding-x: 2rem;
+    --section-max-width: 1400px;
+}
