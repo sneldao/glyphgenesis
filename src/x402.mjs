@@ -72,8 +72,10 @@ class X402Client {
    * Send a payment to a recipient
    */
   async sendPayment(recipient, amount, token = 'MON') {
-    if (token === 'MON') {
-      // Send native MON
+    const normalizedToken = String(token || 'MON').toUpperCase();
+
+    if (normalizedToken !== 'USDC') {
+      // Send native token on the active chain (MON, tBNB, etc.)
       const tx = await this.wallet.sendTransaction({
         to: recipient,
         value: amount
@@ -83,7 +85,7 @@ class X402Client {
       
       const payment = {
         type: 'x402',
-        token: 'MON',
+        token: normalizedToken,
         amount: ethers.formatEther(amount),
         recipient,
         txHash: tx.hash,
@@ -92,10 +94,10 @@ class X402Client {
       
       this.paymentHistory.push(payment);
       return payment;
-    } else {
-      // USDC transfer would go here when USDC is available
-      throw new Error('USDC payments not yet implemented on Monad');
     }
+
+    // USDC transfer would go here when USDC is available
+    throw new Error('USDC payments not yet implemented');
   }
 
   /**

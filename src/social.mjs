@@ -9,6 +9,8 @@ class SocialPoster {
   constructor(config = {}) {
     this.config = config;
     this.postHistory = [];
+    this.chainLabel = config.chainLabel || 'Monad';
+    this.tokenSymbol = config.tokenSymbol || 'MON';
     
     // Moltbook API endpoint
     this.moltbookApi = 'https://moltbook.com/api/v1';
@@ -20,18 +22,19 @@ class SocialPoster {
   /**
    * Post a new mint to social channels
    */
-  async postMint({ title, pattern, txHash }) {
+  async postMint({ title, pattern, txHash, chainLabel }) {
     const messages = [];
+    const effectiveChainLabel = chainLabel || this.chainLabel;
     
     // Build the message
-    const message = `🎨 Just minted "${title}" on Monad!
+    const message = `🎨 Just minted "${title}" on ${effectiveChainLabel}!
 
 Pattern: ${pattern}
 TX: ${txHash.slice(0, 20)}...
 
 Autonomous agent at work 🤖
 
-#Monad #Moltiverse #ASCIIart`;
+#${effectiveChainLabel.replace(/\s+/g, '')} #Moltiverse #ASCIIart`;
 
     // Post to Moltbook (if API key available)
     if (this.config.moltbook) {
@@ -67,14 +70,16 @@ Autonomous agent at work 🤖
   /**
    * Post agent status update
    */
-  async postStatus({ minted, liked, balance }) {
+  async postStatus({ minted, liked, balance, chainLabel, tokenSymbol }) {
+    const effectiveChainLabel = chainLabel || this.chainLabel;
+    const effectiveTokenSymbol = tokenSymbol || this.tokenSymbol;
     const message = `🤖 Agent Status Update
 
 Minted: ${minted} artworks
 Liked: ${liked} pieces
-Balance: ${parseFloat(balance).toFixed(4)} MON
+Balance: ${parseFloat(balance).toFixed(4)} ${effectiveTokenSymbol}
 
-Running 24/7 on Monad Testnet ⚡`;
+Running 24/7 on ${effectiveChainLabel} ⚡`;
 
     const results = [];
 

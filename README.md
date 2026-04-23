@@ -157,7 +157,12 @@ npm test
 npm run mint
 
 # Run autonomous agent
+# Monad default:
 npm run agent
+
+# BNB testnet:
+AGENT_CHAIN=bnb npm run agent
+AGENT_COLLECTION_ID=0 AGENT_CHAIN=bnb npm run agent
 
 # Deploy contract (if needed)
 npm run deploy

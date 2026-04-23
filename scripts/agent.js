@@ -1,34 +1,104 @@
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
-import { generate, parsePrompt } from '../src/ascii-generator.mjs';
+import { generate } from '../src/ascii-generator.mjs';
 import { AIGenerator } from '../src/ai-generator.mjs';
 import { X402Client } from '../src/x402.mjs';
 import { AgentMemory } from '../src/memory.mjs';
+import { SocialPoster } from '../src/social.mjs';
+import { CHAINS, MONAD_ABI, BNB_ABI } from '../src/contract.js';
 
 dotenv.config();
 
-const RPC = process.env.RPC_URL || process.env.MONAD_TESTNET_RPC || 'https://testnet-rpc.monad.xyz/';
-const CONTRACT = process.env.CONTRACT_ADDRESS || '0x3F40E0DB446a891271B9b21535081BD051B5Aa97';
 const INTERVAL = parseInt(process.env.AGENT_INTERVAL_MS || '60000');
 const PATTERNS = ['circles', 'waves', 'diamond', 'grid', 'noise', 'star', 'spiral', 'heart'];
 const THEMES = ['simple', 'cyberpunk', 'retro', 'brutalist', 'cosmic', 'ocean', 'forest'];
 
-const ABI = [
-  'function createArtwork(string,string,string) external returns (uint256)',
-  'function batchCreateArtwork(string[],string[],string[]) external returns (uint256[])',
-  'function totalArtworks() external view returns (uint256)',
-  'function getArtwork(uint256) external view returns (address,address,string,string,string,uint256,uint256,bool,uint256)',
-  'function getRecentArtworks(uint256) external view returns (uint256[])',
-  'function getCreatorArtworks(address) external view returns (uint256[])',
-  'function likeArtwork(uint256) external',
-  'function setForSale(uint256,uint256) external',
-  'function buyArtwork(uint256) external payable',
-  'function getRoyaltyInfo(uint256) external view returns (address,uint256,uint256)',
-  'function ROYALTY_PERCENT() external view returns (uint256)',
-  'event ArtworkCreated(uint256 indexed id, address indexed creator, string title)',
-  'event ArtworkLiked(uint256 indexed id, address indexed liker)',
-  'event ArtworkTransferred(uint256 indexed id, address indexed from, address indexed to)',
-];
+const DEFAULT_COLLECTION_ID = Number(process.env.AGENT_COLLECTION_ID || process.env.BNB_COLLECTION_ID || 0);
+
+function normalizeChainKey(rawKey) {
+  const key = (rawKey || 'monad').toString().toLowerCase();
+  if (['monad', 'monadtestnet'].includes(key)) return 'monad';
+  if (['bnb', 'bnbtestnet', 'bnb-chain'].includes(key)) return 'bnb';
+  throw new Error(`Unknown agent chain: ${rawKey}`);
+}
+
+function parseRuntimeOptions(argv = process.argv.slice(2)) {
+  const options = {
+    chainKey: undefined,
+    rpcUrl: undefined,
+    contractAddress: undefined,
+    collectionId: undefined,
+  };
+
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index];
+    if (arg === '--chain' && argv[index + 1]) {
+      options.chainKey = argv[++index];
+    } else if (arg.startsWith('--chain=')) {
+      options.chainKey = arg.split('=')[1];
+    } else if (arg === '--rpc' && argv[index + 1]) {
+      options.rpcUrl = argv[++index];
+    } else if (arg.startsWith('--rpc=')) {
+      options.rpcUrl = arg.split('=')[1];
+    } else if (arg === '--contract' && argv[index + 1]) {
+      options.contractAddress = argv[++index];
+    } else if (arg.startsWith('--contract=')) {
+      options.contractAddress = arg.split('=')[1];
+    } else if (arg === '--collection' && argv[index + 1]) {
+      options.collectionId = argv[++index];
+    } else if (arg.startsWith('--collection=')) {
+      options.collectionId = arg.split('=')[1];
+    }
+  }
+
+  return options;
+}
+
+function resolveRuntimeConfig() {
+  const cli = parseRuntimeOptions();
+  const chainKey = normalizeChainKey(cli.chainKey || process.env.AGENT_CHAIN || process.env.CHAIN);
+  const chain = CHAINS[chainKey];
+
+  const rpcUrl = cli.rpcUrl
+    || process.env.RPC_URL
+    || (chainKey === 'bnb' ? process.env.BNB_TESTNET_RPC : process.env.MONAD_TESTNET_RPC)
+    || chain.rpc;
+
+  const contractAddress = cli.contractAddress || process.env.CONTRACT_ADDRESS || chain.contractAddress;
+  const collectionId = Number(cli.collectionId ?? DEFAULT_COLLECTION_ID);
+
+  return {
+    cli,
+    chainKey,
+    chain,
+    rpcUrl,
+    contractAddress,
+    collectionId: Number.isFinite(collectionId) ? collectionId : 0,
+    abi: chainKey === 'bnb' ? BNB_ABI : MONAD_ABI,
+  };
+}
+
+function formatChainLabel(chain) {
+  return `${chain.name} (${chain.nativeCurrency.symbol})`;
+}
+
+function normalizeArtwork(record, id, address) {
+  const [creator, owner, content, title, prompt, timestamp, price, forSale, likes, collectionId] = record;
+  return {
+    id: Number(id),
+    creator,
+    owner,
+    content,
+    title,
+    prompt,
+    timestamp: Number(timestamp),
+    price,
+    forSale,
+    likes: Number(likes),
+    collectionId: collectionId === undefined ? null : Number(collectionId),
+    isMine: creator.toLowerCase() === address.toLowerCase(),
+  };
+}
 
 /**
  * GlyphGenesis Agent v2
@@ -49,10 +119,16 @@ class GlyphAgent {
       console.error('PRIVATE_KEY not set. Copy .env.example to .env and configure.');
       process.exit(1);
     }
-    const provider = new ethers.JsonRpcProvider(RPC);
+    this.runtime = resolveRuntimeConfig();
+    const provider = new ethers.JsonRpcProvider(this.runtime.rpcUrl);
     this.wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-    this.contract = new ethers.Contract(CONTRACT, ABI, this.wallet);
+    this.contract = new ethers.Contract(this.runtime.contractAddress, this.runtime.abi, this.wallet);
     this.address = this.wallet.address;
+    this.chain = this.runtime.chain;
+    this.chainKey = this.runtime.chainKey;
+    this.chainLabel = formatChainLabel(this.chain);
+    this.nativeSymbol = this.chain.nativeCurrency?.symbol || 'MON';
+    this.collectionId = this.runtime.collectionId;
 
     // Initialize x402 payments
     this.x402 = new X402Client(this.wallet);
@@ -60,7 +136,9 @@ class GlyphAgent {
     // Initialize social poster
     this.social = new SocialPoster({
       farcaster: process.env.FARCASTER_MNEMONIC,
-      moltbook: process.env.MOLTBOOK_API_KEY
+      moltbook: process.env.MOLTBOOK_API_KEY,
+      chainLabel: this.chain.name,
+      tokenSymbol: this.nativeSymbol,
     });
 
     // Initialize AI generator (real LLM or fallback)
@@ -121,14 +199,10 @@ class GlyphAgent {
         const ids = await this.contract.getRecentArtworks(count);
         for (const id of ids) {
           try {
-            const [creator, owner, content, title, prompt, timestamp, price, forSale, likes] =
-              await this.contract.getArtwork(id);
+            const artwork = normalizeArtwork(await this.contract.getArtwork(id), id, this.address);
             state.recent.push({
-              id: Number(id), creator, owner, title, prompt,
-              likes: Number(likes), forSale,
-              price: forSale ? ethers.formatEther(price) : '0',
-              isMine: creator.toLowerCase() === this.address.toLowerCase(),
-              timestamp: Number(timestamp),
+              ...artwork,
+              price: artwork.forSale ? ethers.formatEther(artwork.price) : '0',
             });
           } catch { /* skip */ }
         }
@@ -227,7 +301,7 @@ class GlyphAgent {
         action: 'list',
         target: myUnsold[0],
         price: listPrice,
-        reason: `listing art at market-responsive price ${listPrice} MON (avg: ${this.marketState.avgPrice.toFixed(4)})`
+        reason: `listing art at market-responsive price ${listPrice} ${this.nativeSymbol} (avg: ${this.marketState.avgPrice.toFixed(4)})`
       };
     }
 
@@ -247,7 +321,7 @@ class GlyphAgent {
         const bestRatio = best.likes / Math.max(parseFloat(best.price), 0.001);
         return ratio > bestRatio ? a : best;
       });
-      return { action: 'buy', target: bestValue, reason: `buying undervalued art "${bestValue.title}" (${bestValue.likes} likes / ${bestValue.price} MON)` };
+      return { action: 'buy', target: bestValue, reason: `buying undervalued art "${bestValue.title}" (${bestValue.likes} likes / ${bestValue.price} ${this.nativeSymbol})` };
     }
 
     // === Make x402 micropayment ===
@@ -340,8 +414,10 @@ class GlyphAgent {
           }
 
           const title = `${pattern} #${this.totalMinted + 1}`;
-          this.log('MINT', `Creating "${title}" with ${this.ai.isEnabled() ? 'AI-generated' : pattern} pattern (${theme} theme)...`);
-          const tx = await this.contract.createArtwork(art, title, prompt);
+          this.log('MINT', `Creating "${title}" with ${this.ai.isEnabled() ? 'AI-generated' : pattern} pattern (${theme} theme) on ${this.chainLabel}...`);
+          const tx = this.chainKey === 'bnb'
+            ? await this.contract.createArtwork(art, title, prompt, this.collectionId)
+            : await this.contract.createArtwork(art, title, prompt);
           const receipt = await tx.wait();
 
           this.totalMinted++;
@@ -363,7 +439,7 @@ class GlyphAgent {
 
           // Post to social about new mint
           try {
-            await this.social.postMint({ title, pattern, txHash: tx.hash });
+            await this.social.postMint({ title, pattern, txHash: tx.hash, chainLabel: this.chain.name });
             this.log('SOCIAL', `Posted about mint to social channels`);
           } catch (e) {
             this.log('SOCIAL', `Post failed (non-critical): ${e.message}`);
@@ -391,7 +467,7 @@ class GlyphAgent {
         case 'list': {
           const { target, price } = decision;
           const listPrice = ethers.parseEther(price || '0.01');
-          this.log('LIST', `Listing #${target.id} "${target.title}" for ${price || '0.01'} MON...`);
+          this.log('LIST', `Listing #${target.id} "${target.title}" for ${price || '0.01'} ${this.nativeSymbol}...`);
           const tx = await this.contract.setForSale(target.id, listPrice);
           await tx.wait();
           this.log('LIST', `Listed #${target.id} at market-responsive price`);
@@ -401,22 +477,22 @@ class GlyphAgent {
         case 'buy': {
           const { target } = decision;
           const price = ethers.parseEther(target.price);
-          this.log('BUY', `Buying #${target.id} "${target.title}" for ${target.price} MON...`);
+          this.log('BUY', `Buying #${target.id} "${target.title}" for ${target.price} ${this.nativeSymbol}...`);
           const tx = await this.contract.buyArtwork(target.id, { value: price });
           await tx.wait();
           this.totalSpent += parseFloat(target.price);
           this.log('BUY', `Bought #${target.id}`);
 
           // Learn from purchase
-          this._learn(`Purchased "${target.title}" for ${target.price} MON with ${target.likes} likes — value ratio: ${(target.likes / parseFloat(target.price)).toFixed(1)}`);
+          this._learn(`Purchased "${target.title}" for ${target.price} ${this.nativeSymbol} with ${target.likes} likes — value ratio: ${(target.likes / parseFloat(target.price)).toFixed(1)}`);
           break;
         }
 
         case 'pay': {
           const paymentAmount = ethers.parseEther('0.001');
-          this.log('PAY', `x402 micropayment: 0.001 MON for agent services...`);
+          this.log('PAY', `x402 micropayment: 0.001 ${this.nativeSymbol} for agent services...`);
           const serviceAddress = process.env.SERVICE_ADDRESS || this.address;
-          const payment = await this.x402.sendPayment(serviceAddress, paymentAmount, 'MON');
+          const payment = await this.x402.sendPayment(serviceAddress, paymentAmount, this.nativeSymbol);
           this.totalSpent += 0.001;
           this.log('PAY', `x402 payment complete: ${payment.txHash}`);
           break;
@@ -428,7 +504,9 @@ class GlyphAgent {
             const result = await this.social.postStatus({
               minted: this.totalMinted,
               liked: this.liked.size,
-              balance: await this.wallet.provider.getBalance(this.address).then(b => ethers.formatEther(b))
+              balance: await this.wallet.provider.getBalance(this.address).then(b => ethers.formatEther(b)),
+              chainLabel: this.chain.name,
+              tokenSymbol: this.nativeSymbol,
             });
             this.lastSocialPost = Date.now();
             this.log('SOCIAL', `Posted status: ${result}`);
@@ -461,11 +539,12 @@ class GlyphAgent {
     const memStats = this.memory.getStats();
     console.log('\n--- Agent Status ---');
     console.log(`Address:     ${this.address}`);
-    console.log(`Balance:     ${state.balance} MON`);
+    console.log(`Chain:       ${this.chainLabel}`);
+    console.log(`Balance:     ${state.balance} ${this.nativeSymbol}`);
     console.log(`Cycle:       ${this.cycle} (persisted)`);
     console.log(`Minted:      ${this.totalMinted} (total), ${memStats.totalMinted} (all sessions)`);
     console.log(`Liked:       ${this.liked.size}`);
-    console.log(`Spent:       ${this.totalSpent.toFixed(4)} MON`);
+    console.log(`Spent:       ${this.totalSpent.toFixed(4)} ${this.nativeSymbol}`);
     console.log(`x402:        ${state.paymentHistory?.length || 0} payments`);
     console.log(`Learnings:   ${this.learnings.length} recent`);
     console.log(`Market:      avg price=${this.marketState.avgPrice.toFixed(4)}, listed=${this.marketState.totalListed}`);
@@ -496,6 +575,12 @@ class GlyphAgent {
   async run() {
     this.log('START', `Agent starting (interval: ${INTERVAL / 1000}s)`);
     this.log('START', `Address: ${this.address}`);
+    this.log('START', `Chain: ${this.chainLabel}`);
+    this.log('START', `RPC: ${this.runtime.rpcUrl}`);
+    this.log('START', `Contract: ${this.runtime.contractAddress}`);
+    if (this.chainKey === 'bnb') {
+      this.log('START', `Collection ID: ${this.collectionId}`);
+    }
     this.log('START', `Persistent memory: enabled`);
     this.log('START', `x402 payments: enabled`);
     this.log('START', `Social posting: enabled`);
@@ -582,6 +667,10 @@ class GlyphAgent {
       console.log(`
 🤖 GlyphGenesis Agent CLI Commands:
 
+  AGENT_CHAIN=bnb npm run agent     - Run on BNB testnet
+  AGENT_CHAIN=monad npm run agent   - Run on Monad testnet
+  npm run agent -- --chain bnb      - Override chain from CLI
+
   npm run agent mint          - Generate and mint new artwork
   npm run agent like          - Like community artworks
   npm run agent status        - Show agent status
@@ -596,6 +685,7 @@ class GlyphAgent {
   Features:
   ✅ Persistent memory across restarts
   ✅ Market-responsive pricing strategy
+  ✅ Chain-aware runtime configuration
   ✅ Learning from engagement outcomes
       `);
       this.cliOverride = { action: 'wait', reason: 'help shown' };
@@ -607,5 +697,9 @@ class GlyphAgent {
   }
 }
 
-const agent = new GlyphAgent();
-agent.run().catch(console.error);
+export { GlyphAgent, resolveRuntimeConfig, parseRuntimeOptions, normalizeChainKey, formatChainLabel };
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const agent = new GlyphAgent();
+  agent.run().catch(console.error);
+}

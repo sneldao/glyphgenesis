@@ -1,6 +1,6 @@
 import { generate, parsePrompt, creativityScore, getRarity, PATTERN_LIST, THEME_LIST, mutateArt } from '@/ascii-generator.mjs';
 import { isConnected, getContract, onWalletEvent } from '@/wallet.js';
-import { EXPLORER_TX, getActiveChain, getCurrencyLabel } from '@/contract.js';
+import { EXPLORER_TX, getActiveChain, getActiveChainKey, getCurrencyLabel } from '@/contract.js';
 import { showToast } from './toast.js';
 import { escapeHtml } from '@/utils.js';
 
@@ -47,6 +47,12 @@ export function renderGenerator() {
                         ${THEME_LIST.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
                     </select>
                 </div>
+                <div class="bnb-controls" id="bnbControls" style="display:none;">
+                    <label class="field-label" for="collectionId">BNB Collection ID</label>
+                    <input type="number" id="collectionId" min="0" step="1" value="0" aria-label="BNB collection ID">
+                    <small style="color:var(--muted);font-size:.68rem;display:block;margin-top:5px;">BNB only: mint into collection 0 by default, or create a new collection first.</small>
+                    <button type="button" class="gen-btn outline" id="createCollectionBtn">Create Collection</button>
+                </div>
                 <div class="animate-row">
                     <label><input type="checkbox" id="animateToggle"> Animate</label>
                     <div class="playback-btns" id="playbackControls">
@@ -86,6 +92,7 @@ export function renderGenerator() {
     section.querySelector('#shareBtn').addEventListener('click', shareOnTwitter);
     section.querySelector('#shareCardBtn').addEventListener('click', generateShareCard);
     section.querySelector('#mintBtn').addEventListener('click', mintArt);
+    section.querySelector('#createCollectionBtn')?.addEventListener('click', createCollection);
     section.querySelector('#prompt').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') generateArt();
     });
@@ -98,9 +105,18 @@ export function renderGenerator() {
     onWalletEvent((event) => {
         if (event === 'connect') updateMintButton(true);
         if (event === 'disconnect') updateMintButton(false);
+        if (event === 'connect' || event === 'disconnect' || event === 'chainSwitch') updateChainControls();
     });
 
+    updateChainControls();
+
     return section;
+}
+
+function updateChainControls() {
+    const controls = document.getElementById('bnbControls');
+    if (!controls) return;
+    controls.style.display = getActiveChainKey() === 'bnb' ? '' : 'none';
 }
 
 function updateMintButton(connected) {
@@ -355,7 +371,13 @@ async function mintArt() {
         if (statusDiv) statusDiv.innerHTML = '<div class="status-message loading"><span class="spinner" aria-hidden="true"></span>Sending transaction to contract...</div>';
         showToast('Initiating mint transaction...', 'info');
 
-        const tx = await contract.createArtwork(art, `${prompt} - ${pattern}`, `Generated with ${pattern} pattern`);
+        const title = `${prompt} - ${pattern}`;
+        const description = `Generated with ${pattern} pattern`;
+        const collectionId = Number(document.getElementById('collectionId')?.value ?? 0);
+
+        const tx = getActiveChainKey() === 'bnb'
+            ? await contract.createArtwork(art, title, description, Number.isFinite(collectionId) ? collectionId : 0)
+            : await contract.createArtwork(art, title, description);
         if (statusDiv) statusDiv.innerHTML = '<div class="status-message loading"><span class="spinner" aria-hidden="true"></span>Mining transaction...</div>';
 
         const receipt = await tx.wait();
@@ -371,5 +393,25 @@ async function mintArt() {
         showToast(`Minting failed: ${msg}`, 'error');
     } finally {
         if (mintBtn) { mintBtn.disabled = false; mintBtn.textContent = 'Mint This Art on ' + getCurrencyLabel(); }
+    }
+}
+
+async function createCollection() {
+    if (!isConnected()) { showToast('Please connect your wallet first', 'warning'); return; }
+    const contract = getContract();
+    if (!contract) { showToast('Wallet not connected', 'error'); return; }
+    if (getActiveChainKey() !== 'bnb') { showToast('Collections are only available on BNB', 'warning'); return; }
+
+    const name = prompt('Collection name');
+    if (!name) return;
+    const description = prompt('Collection description') || '';
+
+    try {
+        showToast('Creating collection...', 'info');
+        const tx = await contract.createCollection(name, description);
+        await tx.wait();
+        showToast(`Collection "${name}" created!`, 'success');
+    } catch (error) {
+        showToast(`Collection creation failed: ${error.message || error}`, 'error');
     }
 }
