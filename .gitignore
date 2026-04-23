@@ -13,4 +13,5 @@ out/
 .blackboxcli/
 .junie/
 .letta/
+.agent-state/
 dist/

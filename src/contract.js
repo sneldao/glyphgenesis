@@ -25,7 +25,7 @@ export const CHAINS = {
         explorerTx: (hash) => `https://testnet.bnbchain.org/tx/${hash}`,
         explorerAddr: (addr) => `https://testnet.bnbchain.org/address/${addr}`,
         blockExplorerUrls: ['https://testnet.bnbchain.org/'],
-        contractAddress: '0xA91212ebD70994BAe3Ff36eB2CA785316940da32',
+        contractAddress: '0x095897d189aAA1EA872b061ea82506E7b0d64B5B',
         agentAddress: null,
         currencyLabel: 'tBNB',
     },

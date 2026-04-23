@@ -10,9 +10,9 @@
 
 ## BNB Edition - Smart Contract
 
-**Contract:** `0xA91212ebD70994BAe3Ff36eB2CA785316940da32`  
+**Contract:** `0x095897d189aAA1EA872b061ea82506E7b0d64B5B`  
 **Network:** BNB Chain Testnet (Chain ID: 97, RPC: `https://data-seed-prebsc-1-s1.bnbchain.org:8545`)  
-**Explorer:** [View on BNB Explorer](https://testnet.bnbchain.org/address/0xA91212ebD70994BAe3Ff36eB2CA785316940da32)
+**Explorer:** [View on BNB Explorer](https://testnet.bnbchain.org/address/0x095897d189aAA1EA872b061ea82506E7b0d64B5B)
 
 ### Chain Differentiation
 
