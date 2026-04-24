@@ -164,29 +164,65 @@ function generateArt() {
             }
             animationIndex = 0;
             currentArt = animationFrames[0];
-            output.textContent = currentArt;
-            const controls = document.getElementById('playbackControls');
-            if (controls) controls.style.display = 'flex';
-            const counter = document.getElementById('frameCounter');
-            if (counter) counter.textContent = `Frame: 1/${frameCount}`;
-            showToast(`Generated ${frameCount} animation frames!${detectionMsg}`, 'success');
+            
+            // For animation, we still want a quick "typing" feel for the first frame
+            animateText(output, currentArt, () => {
+                const controls = document.getElementById('playbackControls');
+                if (controls) controls.style.display = 'flex';
+                const counter = document.getElementById('frameCounter');
+                if (counter) counter.textContent = `Frame: 1/${frameCount}`;
+                showToast(`Generated ${frameCount} animation frames!${detectionMsg}`, 'success');
+                updateCreativityScore(currentArt);
+            });
         } else {
             currentArt = generate(promptInput, {
                 type: genType, pattern, theme,
                 width: parsed.width || 40, height: parsed.height || 15,
                 framed: true, seed: parsed.seed,
             });
-            output.textContent = currentArt;
-            const controls = document.getElementById('playbackControls');
-            if (controls) controls.style.display = 'none';
-            showToast(`Art generated with ${theme} theme!${detectionMsg}`, 'success');
+            
+            animateText(output, currentArt, () => {
+                const controls = document.getElementById('playbackControls');
+                if (controls) controls.style.display = 'none';
+                showToast(`Art generated with ${theme} theme!${detectionMsg}`, 'success');
+                updateCreativityScore(currentArt);
+            });
         }
-        updateCreativityScore(currentArt);
     } catch (error) {
         console.error(error);
         output.textContent = 'Failed to generate art. Please try again.';
         showToast(`Generation failed: ${error.message}`, 'error');
     }
+}
+
+/**
+ * Animate text rendering line-by-line for a terminal feel
+ */
+function animateText(el, text, onComplete) {
+    if (!el) return;
+    el.textContent = '';
+    el.classList.add('scanning');
+    
+    const lines = text.split('\n');
+    let currentLine = 0;
+    
+    // Determine speed based on line count - more lines = faster per line
+    const baseDelay = 30;
+    const delay = Math.max(10, baseDelay - (lines.length / 2));
+    
+    function renderNextLine() {
+        if (currentLine < lines.length) {
+            el.textContent += lines[currentLine] + (currentLine < lines.length - 1 ? '\n' : '');
+            currentLine++;
+            el.scrollTop = el.scrollHeight;
+            setTimeout(renderNextLine, delay);
+        } else {
+            el.classList.remove('scanning');
+            if (onComplete) onComplete();
+        }
+    }
+    
+    renderNextLine();
 }
 
 function mutateCurrentArt() {
@@ -199,8 +235,7 @@ function mutateCurrentArt() {
     try {
         currentArt = mutateArt(currentArt, { mutationRate: 0.15, theme, seed: Date.now() });
         const output = document.getElementById('output');
-        if (output) output.textContent = currentArt;
-        updateCreativityScore(currentArt);
+        if (output) animateText(output, currentArt, () => updateCreativityScore(currentArt));
         showToast('Art evolved with subtle mutation!', 'success');
     } catch (error) {
         showToast(`Evolution failed: ${error.message}`, 'error');
@@ -213,10 +248,24 @@ function updateCreativityScore(art) {
     const score = creativityScore(art);
     const rarity = getRarity(score);
     scoreEl.style.display = 'flex';
+    
+    const isHighRarity = rarity.name === 'Legendary' || rarity.name === 'Epic';
+    const rarityClass = isHighRarity ? rarity.name.toLowerCase() : '';
+    
     scoreEl.innerHTML = `
-        <span class="rarity-badge" style="color:${rarity.color};border-color:${rarity.color}">${rarity.emoji} ${rarity.name}</span>
+        <span class="rarity-badge ${rarityClass}" style="color:${rarity.color};border-color:${rarity.color}">${rarity.emoji} ${rarity.name}</span>
         <span class="creativity-value">Creativity: ${score}/100</span>
     `;
+    
+    if (isHighRarity) {
+        // Trigger a subtle screen shake or special effect
+        const output = document.getElementById('output');
+        if (output) {
+            output.style.animation = 'none';
+            void output.offsetWidth; // trigger reflow
+            output.style.animation = 'glitch1 0.4s ease-out';
+        }
+    }
 }
 
 function randomize() {

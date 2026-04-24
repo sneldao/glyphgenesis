@@ -35,15 +35,15 @@ export function renderGallery() {
 
         <div id=\"featuredArt\" class=\"featured-art\" style=\"display:none;\" role=\"article\" aria-label=\"Featured artwork\"></div>
 
-        <div class=\"gallery-toolbar\">
-            <div class=\"gallery-search\">
-                <input type=\"text\" id=\"gallerySearch\" placeholder=\"Search art by title, creator, pattern...\" aria-label=\"Search artworks\">
+        <div class="gallery-toolbar">
+            <div class="gallery-search">
+                <input type="text" id="gallerySearch" placeholder="Search art by title, creator, pattern..." aria-label="Search artworks">
             </div>
-            <div class=\"gallery-filters\">
-                <button class=\"filter-btn active\" data-filter=\"all\">All</button>
-                <button class=\"filter-btn\" data-filter=\"for-sale\">For Sale</button>
-                <button class=\"filter-btn\" data-filter=\"agent\">🤖 Agent</button>
-                <button class=\"filter-btn\" data-filter=\"owned\">My Art</button>
+            <div class="gallery-filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="for-sale">For Sale</button>
+                <button class="filter-btn" data-filter="agent">🤖 Agent</button>
+                <button class="filter-btn" data-filter="owned">My Collection</button>
             </div>
             <div class=\"gallery-sort\">
                 <select id=\"gallerySort\" aria-label=\"Sort artworks\">
@@ -170,7 +170,22 @@ export async function loadGallery() {
     const container = document.getElementById('galleryContent');
     if (!container) return;
 
-    container.innerHTML = '<div class=\"loading\"><span class=\"spinner\" aria-hidden=\"true\"></span>Loading from blockchain...</div>';
+    // Render skeleton loading
+    container.innerHTML = `
+        <div class="gallery-grid">
+            ${Array(6).fill(0).map(() => `
+                <div class="skeleton-item">
+                    <div class="skeleton-content"></div>
+                    <div class="skeleton-text"></div>
+                    <div class="skeleton-text" style="width: 40%"></div>
+                    <div class="skeleton-actions" style="margin-top:auto">
+                        <div class="skeleton-btn"></div>
+                        <div class="skeleton-btn"></div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
 
     try {
         const total = await statsCache.fetchWithRetry('totalArtworks', async () => {
@@ -287,13 +302,23 @@ function renderGalleryItems(artworks) {
         const isOwner = art.owner.toLowerCase() === userAddr;
         const priceEth = art.forSale && art.price ? ethers.formatEther(art.price) : null;
         const rarity = getRarity(art.rarity);
+        
+        // Dynamic achievements based on artwork stats
+        const achievements = [];
+        if (art.rarity > 85) achievements.push('✨ Masterpiece');
+        if (art.likes > 5) achievements.push('🔥 Viral');
+        if (art.isAgent) achievements.push('🤖 Bot-Made');
+        if (isOwner) achievements.push('🏷️ Collected');
 
         return `
-            <div class=\"gallery-item\" data-id=\"${art.id}\" tabindex=\"0\" role=\"article\" aria-label=\"Artwork: ${escapeHtml(art.title)}\">
+            <div class="gallery-item" data-id="${art.id}" tabindex="0" role="article" aria-label="Artwork: ${escapeHtml(art.title)}">
                 <pre>${escapeHtml(art.content.slice(0, 500))}${art.content.length > 500 ? '...' : ''}</pre>
-                <div class=\"gallery-meta\">
+                <div class="gallery-meta">
+                    <div class="gallery-achievements">
+                        ${achievements.map(a => `<span class="achievement-tag">${a}</span>`).join('')}
+                    </div>
                     <strong>${escapeHtml(art.title)}</strong>
-                    <span class=\"rarity-badge\" style=\"color:${rarity.color};border-color:${rarity.color}\">${rarity.emoji} ${rarity.name} (${art.rarity})</span>
+                    <span class="rarity-badge" style="color:${rarity.color};border-color:${rarity.color}">${rarity.emoji} ${rarity.name} (${art.rarity})</span>
                     <div class=\"gallery-meta-details\">
                         ID: #${art.id} · ${shortAddress(art.creator)} · ${timeAgo(art.timestamp)}
                         ${art.isAgent ? '<br><span class=\"agent-badge-sm\">🤖 AGENT</span>' : ''}

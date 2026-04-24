@@ -13,7 +13,7 @@ export const CHAINS = {
         explorerAddr: (addr) => `https://testnet.monadexplorer.com/address/${addr}`,
         blockExplorerUrls: ['https://testnet.monadexplorer.com/'],
         contractAddress: '0x3F40E0DB446a891271B9b21535081BD051B5Aa97',
-        agentAddress: '0x3780b1f1a9936ee6FB2195a3fe39127bA7330A42',
+        agentAddress: '0x7646042bDdC9b8Bba86499a081B3189Dac9f1B90',
         currencyLabel: 'MON',
     },
     bnb: {
@@ -213,86 +213,131 @@ export function getReadContract() {
  */
 export function subscribeToEvents(eventHandlers) {
     const contract = getReadContract();
+    const provider = contract.runner.provider;
 
-    // Store handler references so off() can remove the same function
-    const listeners = [];
+    // Monad Testnet RPC currently has issues with eth_newFilter
+    // We'll use a polling mechanism if we're on Monad
+    const usePolling = activeChainKey === 'monad';
 
-    function addListener(filter, handler) {
-        contract.on(filter, handler);
-        listeners.push({ filter, handler });
+    if (!usePolling) {
+        // Standard Ethers.js event subscription
+        const listeners = [];
+        function addListener(filter, handler) {
+            try {
+                contract.on(filter, handler);
+                listeners.push({ filter, handler });
+            } catch (e) {
+                console.warn(`Failed to subscribe to event filter: ${e.message}.`);
+            }
+        }
+
+        if (eventHandlers.onArtworkCreated) {
+            addListener(contract.filters.ArtworkCreated(), (id, creator, title) => {
+                eventHandlers.onArtworkCreated({ id: Number(id), creator, title });
+            });
+        }
+        if (eventHandlers.onArtworkLiked) {
+            addListener(contract.filters.ArtworkLiked(), (id, liker) => {
+                eventHandlers.onArtworkLiked({ id: Number(id), liker });
+            });
+        }
+        if (eventHandlers.onArtworkTransferred) {
+            addListener(contract.filters.ArtworkTransferred(), (id, from, to) => {
+                eventHandlers.onArtworkTransferred({ id: Number(id), from, to });
+            });
+        }
+        if (eventHandlers.onArtworkPriceSet) {
+            addListener(contract.filters.ArtworkPriceSet(), (id, price) => {
+                eventHandlers.onArtworkPriceSet({ id: Number(id), price: price.toString() });
+            });
+        }
+        if (eventHandlers.onTransfer) {
+            addListener(contract.filters.Transfer(), (from, to, tokenId) => {
+                eventHandlers.onTransfer({ from, to, tokenId: Number(tokenId) });
+            });
+        }
+        if (eventHandlers.onPaused) addListener('Paused', (account) => eventHandlers.onPaused({ account }));
+        if (eventHandlers.onUnpaused) addListener('Unpaused', (account) => eventHandlers.onUnpaused({ account }));
+
+        return () => {
+            listeners.forEach(({ filter, handler }) => contract.off(filter, handler));
+            listeners.length = 0;
+        };
     }
 
-    if (eventHandlers.onArtworkCreated) {
-        const filter = contract.filters.ArtworkCreated();
-        addListener(filter, (id, creator, title) => {
-            eventHandlers.onArtworkCreated({ id: Number(id), creator, title });
-        });
+    // Polling-based subscription
+    let lastBlock = -1;
+    let isPolling = true;
+    let pollTimeout = null;
+
+    async function poll() {
+        if (!isPolling) return;
+        try {
+            const currentBlock = await provider.getBlockNumber();
+            if (lastBlock === -1) {
+                lastBlock = currentBlock;
+            } else if (currentBlock > lastBlock) {
+                const fromBlock = lastBlock + 1;
+                const toBlock = currentBlock;
+
+                // Helper to process events for a given filter
+                const processEvents = async (filter, handler, mapper) => {
+                    if (handler) {
+                        const events = await contract.queryFilter(filter, fromBlock, toBlock);
+                        events.forEach(e => handler(mapper(e.args)));
+                    }
+                };
+
+                await Promise.all([
+                    processEvents(contract.filters.ArtworkCreated(), eventHandlers.onArtworkCreated, args => ({ id: Number(args[0]), creator: args[1], title: args[2] })),
+                    processEvents(contract.filters.ArtworkLiked(), eventHandlers.onArtworkLiked, args => ({ id: Number(args[0]), liker: args[1] })),
+                    processEvents(contract.filters.ArtworkTransferred(), eventHandlers.onArtworkTransferred, args => ({ id: Number(args[0]), from: args[1], to: args[2] })),
+                    processEvents(contract.filters.ArtworkPriceSet(), eventHandlers.onArtworkPriceSet, args => ({ id: Number(args[0]), price: args[1].toString() })),
+                    processEvents(contract.filters.Transfer(), eventHandlers.onTransfer, args => ({ from: args[0], to: args[1], tokenId: Number(args[2]) })),
+                ]);
+
+                // Check for Paused/Unpaused
+                if (eventHandlers.onPaused) {
+                    const events = await contract.queryFilter('Paused', fromBlock, toBlock);
+                    events.forEach(e => eventHandlers.onPaused({ account: e.args[0] }));
+                }
+                if (eventHandlers.onUnpaused) {
+                    const events = await contract.queryFilter('Unpaused', fromBlock, toBlock);
+                    events.forEach(e => eventHandlers.onUnpaused({ account: e.args[0] }));
+                }
+
+                // BNB-only events
+                if (activeChainKey === 'bnb') {
+                    if (eventHandlers.onCollectionCreated && contract.filters.CollectionCreated) {
+                        const events = await contract.queryFilter(contract.filters.CollectionCreated(), fromBlock, toBlock);
+                        events.forEach(e => eventHandlers.onCollectionCreated({ id: Number(e.args[0]), creator: e.args[1], name: e.args[2] }));
+                    }
+                    if (eventHandlers.onAuctionStarted && contract.filters.AuctionStarted) {
+                        const events = await contract.queryFilter(contract.filters.AuctionStarted(), fromBlock, toBlock);
+                        events.forEach(e => eventHandlers.onAuctionStarted({ id: Number(e.args[0]), seller: e.args[1], startingPrice: e.args[2].toString() }));
+                    }
+                    if (eventHandlers.onAuctionEnded && contract.filters.AuctionEnded) {
+                        const events = await contract.queryFilter(contract.filters.AuctionEnded(), fromBlock, toBlock);
+                        events.forEach(e => eventHandlers.onAuctionEnded({ id: Number(e.args[0]), winner: e.args[1], finalPrice: e.args[2].toString() }));
+                    }
+                }
+                
+                lastBlock = currentBlock;
+            }
+        } catch (e) {
+            console.debug('Subscription poll failed (RPC noise):', e.message);
+        }
+        
+        if (isPolling) {
+            pollTimeout = setTimeout(poll, 15000); // Poll every 15s for stability
+        }
     }
 
-    if (eventHandlers.onArtworkLiked) {
-        const filter = contract.filters.ArtworkLiked();
-        addListener(filter, (id, liker) => {
-            eventHandlers.onArtworkLiked({ id: Number(id), liker });
-        });
-    }
+    poll();
 
-    if (eventHandlers.onArtworkTransferred) {
-        const filter = contract.filters.ArtworkTransferred();
-        addListener(filter, (id, from, to) => {
-            eventHandlers.onArtworkTransferred({ id: Number(id), from, to });
-        });
-    }
-
-    if (eventHandlers.onArtworkPriceSet) {
-        const filter = contract.filters.ArtworkPriceSet();
-        addListener(filter, (id, price) => {
-            eventHandlers.onArtworkPriceSet({ id: Number(id), price: price.toString() });
-        });
-    }
-
-    if (eventHandlers.onTransfer) {
-        const filter = contract.filters.Transfer();
-        addListener(filter, (from, to, tokenId) => {
-            eventHandlers.onTransfer({ from, to, tokenId: Number(tokenId) });
-        });
-    }
-
-    if (eventHandlers.onPaused) {
-        addListener('Paused', (account) => eventHandlers.onPaused({ account }));
-    }
-
-    if (eventHandlers.onUnpaused) {
-        addListener('Unpaused', (account) => eventHandlers.onUnpaused({ account }));
-    }
-
-    // BNB-only events
-    if (eventHandlers.onCollectionCreated && contract.filters.CollectionCreated) {
-        const filter = contract.filters.CollectionCreated();
-        addListener(filter, (id, creator, name) => {
-            eventHandlers.onCollectionCreated({ id: Number(id), creator, name });
-        });
-    }
-
-    if (eventHandlers.onAuctionStarted && contract.filters.AuctionStarted) {
-        const filter = contract.filters.AuctionStarted();
-        addListener(filter, (id, seller, startingPrice) => {
-            eventHandlers.onAuctionStarted({ id: Number(id), seller, startingPrice: startingPrice.toString() });
-        });
-    }
-
-    if (eventHandlers.onAuctionEnded && contract.filters.AuctionEnded) {
-        const filter = contract.filters.AuctionEnded();
-        addListener(filter, (id, winner, finalPrice) => {
-            eventHandlers.onAuctionEnded({ id: Number(id), winner, finalPrice: finalPrice.toString() });
-        });
-    }
-
-    // Return unsubscribe function that removes the exact same handler references
     return () => {
-        listeners.forEach(({ filter, handler }) => {
-            contract.off(filter, handler);
-        });
-        listeners.length = 0;
+        isPolling = false;
+        if (pollTimeout) clearTimeout(pollTimeout);
     };
 }
 

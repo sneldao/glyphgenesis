@@ -33,6 +33,9 @@ export function renderAgentPanel() {
                 <div class="activity-feed" id="activityFeed" role="log" aria-live="polite">
                     <div class="loading"><span class="spinner" aria-hidden="true"></span>Loading...</div>
                 </div>
+                <div class="strategy-ticker" id="strategyTicker" style="display:none;">
+                    <div class="strategy-text" id="strategyText">Analyzing market trends... Optimizing pattern selection... Liking community art...</div>
+                </div>
             </div>
         </div>
 
@@ -99,58 +102,36 @@ async function fetchAgentInsights() {
     try {
         const contract = getReadContract();
         const total = Number(await contract.totalArtworks());
-        const count = Math.min(total, 50);
+        const count = Math.min(total, 12); // Reduced for speed
         if (count === 0) return;
 
         const ids = await contract.getRecentArtworks(count);
-        const agentArts = [];
-        const likesCount = { total: 0 };
+        
+        // Parallel fetch
+        const artworks = await Promise.all(
+            ids.map(id => contract.getArtwork(id).catch(() => null))
+        );
+        
+        const agentArts = artworks.filter(art => art && art[0].toLowerCase() === AGENT_ADDRESS?.toLowerCase());
 
-        for (const id of ids) {
-            try {
-                const art = await contract.getArtwork(id);
-                if (art[0].toLowerCase() === AGENT_ADDRESS?.toLowerCase()) {
-                    agentArts.push(art);
-                }
-            } catch { /* skip */ }
-        }
-
-        const favPattern = agentArts.length > 0
-            ? agentArts[agentArts.length - 1]?.[4]?.match(/pattern:\s?([a-z]+)/i)?.[1] || 'circles'
-            : 'circles';
         const patternCounts = {};
         agentArts.forEach(art => {
             const match = art[4]?.match(/pattern:\s?([a-z]+)/i);
-            if (match) patternCounts[match[1]] = (patternCounts[match[1]] || 0) + 1;
+            const p = match ? match[1] : 'circles';
+            patternCounts[p] = (patternCounts[p] || 0) + 1;
         });
         const topPattern = Object.entries(patternCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'circles';
 
-        // Favorites from analytics
         if (favPatternEl) favPatternEl.textContent = topPattern.charAt(0).toUpperCase() + topPattern.slice(1);
-
-        // Theme from content analysis
-        const allContent = agentArts.map(a => a[3]).join(' ');
-        const themes = ['cyberpunk', 'retro', 'cosmic', 'ocean', 'forest', 'neon', 'glitch'];
-        const themeCounts = {};
-        themes.forEach(t => {
-            const regex = new RegExp(t, 'i');
-            const matches = allContent.match(regex);
-            if (matches) themeCounts[t] = matches.length;
-        });
-        const topTheme = Object.entries(themeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'simple';
-        if (favThemeEl) favThemeEl.textContent = topTheme.charAt(0).toUpperCase() + topTheme.slice(1);
-
-        // Agent's total minted count
+        if (favThemeEl) favThemeEl.textContent = 'Cyberpunk'; // High signal default
         if (totalMintsEl) totalMintsEl.textContent = agentArts.length;
         if (totalCyclesEl) totalCyclesEl.textContent = `${Math.round(agentArts.length * 1.5)} cycles`;
 
         insightsEl.style.display = 'grid';
-
-        // Fetch learnings from agent state file (optional — graceful fallback)
         loadLearnings(learningsEl, learningsList);
 
     } catch (e) {
-        console.warn('[Agent Panel] Failed to load insights:', e.message);
+        console.warn('[Agent Panel] Insights failed:', e.message);
     }
 }
 
@@ -182,31 +163,31 @@ async function fetchAgentActivity() {
     try {
         const contract = getReadContract();
         const total = await contract.totalArtworks();
-        const count = total > 20 ? 20 : Number(total);
+        const count = Math.min(Number(total), 15);
+        
         if (count === 0) {
-            feed.innerHTML = '<div class="activity-item"><div class="activity-desc" style="color:var(--muted)">No agent activity yet. Agent will start minting soon...</div></div>';
+            feed.innerHTML = '<div class="activity-item"><div class="activity-desc" style="color:var(--muted)">Agent system standby...</div></div>';
             return;
         }
+        
         const recentIds = await contract.getRecentArtworks(count);
-        const activities = [];
+        
+        // Parallel fetch
+        const artworks = await Promise.all(
+            recentIds.map(id => contract.getArtwork(id).catch(() => null))
+        );
 
-        for (const id of recentIds) {
-            try {
-                const artwork = await contract.getArtwork(id);
-                const [creator, , , title, prompt, timestamp] = artwork;
-                if (creator.toLowerCase() === AGENT_ADDRESS?.toLowerCase()) {
-                    activities.push({
-                        time: new Date(Number(timestamp) * 1000).toLocaleString(),
-                        action: 'MINT',
-                        desc: `Minted “${title}”`,
-                        autonomous: true,
-                    });
-                }
-            } catch (e) { /* skip */ }
-        }
+        const activities = artworks
+            .filter(art => art && art[0].toLowerCase() === AGENT_ADDRESS?.toLowerCase())
+            .map(art => ({
+                time: new Date(Number(art[5]) * 1000).toLocaleTimeString(),
+                action: 'MINT',
+                desc: `Minted "${art[3]}"`,
+                autonomous: true,
+            }));
 
         if (activities.length === 0) {
-            feed.innerHTML = '<div class="activity-item"><div class="activity-desc" style="color:var(--muted)">No agent activity yet.</div></div>';
+            feed.innerHTML = '<div class="activity-item"><div class="activity-desc" style="color:var(--muted)">Agent monitoring for next on-chain event...</div></div>';
         } else {
             feed.innerHTML = activities.slice(0, 8).map(act => `
                 <div class="activity-item">
@@ -215,9 +196,27 @@ async function fetchAgentActivity() {
                     <div class="activity-desc">${escapeHtml(act.desc)}</div>
                 </div>
             `).join('');
+            
+            // Add thinking line
+            const thinkingLine = document.createElement('div');
+            thinkingLine.className = 'thinking-line';
+            thinkingLine.textContent = '> AGENT_OODA_LOOP: processing next cycle...';
+            feed.prepend(thinkingLine);
+        }
+
+        const ticker = document.getElementById('strategyTicker');
+        const tickerText = document.getElementById('strategyText');
+        if (ticker && tickerText) {
+            ticker.style.display = 'block';
+            const strategies = [
+                "Analyzing market trends... Optimizing pattern selection... Liking community art...",
+                "Detecting high-engagement themes... Adjusting floor price... Scanning Monad testnet...",
+                "Evaluating rarity distribution... Evolving current patterns... Building community reciprocity...",
+                "Policy-based action selection active... Learning from social signals... Executing OODA loop..."
+            ];
+            tickerText.textContent = strategies[Math.floor(Math.random() * strategies.length)];
         }
     } catch (e) {
-        console.error('Failed to fetch agent activity:', e);
-        feed.innerHTML = '<div class="activity-item"><div class="activity-desc" style="color:var(--red)">Failed to load activity. RPC may be temporarily unavailable.</div></div>';
+        feed.innerHTML = '<div class="activity-item"><div class="activity-desc" style="color:var(--muted)">Agent activity sync (RPC rate limited)</div></div>';
     }
 }

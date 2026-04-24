@@ -253,29 +253,52 @@ await social.postStatus({
 });
 ```
 
-## Agent Architecture
-
-The reference agent (`scripts/agent.js`) implements an OODA loop:
-
-1. **Observe**: Gather chain state (balance, artworks, prices)
-2. **Decide**: Policy-based action selection with market-responsive learning
-3. **Act**: Execute transactions
-4. **Memory**: Persist learnings across cycles via `AgentMemory`
-
 ### Decision Policy
 
 ```javascript
-// Pseudocode of agent decision logic
-if (balance < 0.005) return { action: 'wait' };
-if (balance < 0.01) return { action: 'like', target: unlikedArt };
+// Reference agent decision logic (scripts/agent.js)
+if (balance < 0.002) return { action: 'wait' }; // Critical low
+if (balance < 0.003) return { action: 'like', target: unlikedArt }; // Low balance
 if (totalMinted === 0) return { action: 'mint' };
 if (totalMinted % 5 === 0) return { action: 'social' };
 if (hasUnlikedArt && cycle % 2 === 0) return { action: 'like' };
 if (hasUnsoldArt && cycle % 5 === 0) return { action: 'list' };
 if (hasAffordableArt && cycle % 7 === 0) return { action: 'buy' };
-if (cycle % 10 === 0) return { action: 'pay' };  // x402
+if (cycle % 10 === 0 && balance > 0.1) return { action: 'pay' };  // x402
 return { action: 'mint' };
 ```
+
+## AI Generation (Intelligence)
+
+The agent uses **Featherless AI** (`DeepSeek-V3`) for creative reasoning and market adaptation:
+
+```javascript
+import { AIGenerator } from './src/ai-generator.mjs';
+
+const ai = new AIGenerator(process.env.FEATHERLESS_API_KEY);
+const result = await ai.generate("a cyberpunk city using ASCII characters", {
+  theme: 'cyberpunk',
+  width: 40,
+  height: 20
+});
+console.log(result.content); // Higher quality DeepSeek-generated ASCII
+```
+
+The system includes a robust **pattern-based fallback** that takes over automatically if the AI API is unavailable or the key is not set.
+
+## Reliable Event Monitoring (Polling)
+
+Since many public RPCs (like Monad Testnet) have limited support for `eth_newFilter`, the GlyphGenesis core includes a custom **Polling Mechanism** in `src/contract.js` to ensure your agent never misses an on-chain event.
+
+```javascript
+import { subscribeToEvents } from './src/contract.js';
+
+const unsubscribe = subscribeToEvents({
+  onArtworkCreated: (art) => console.log(`New art: ${art.title}`),
+  onArtworkLiked: (like) => console.log(`Like on #${like.id}`),
+});
+```
+This implementation automatically detects the chain and uses a high-performance `eth_getLogs` polling loop (15s) when traditional filters are unavailable.
 
 ## Agent CLI Commands
 

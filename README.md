@@ -7,7 +7,7 @@
 **Hackathon:** [Four.meme AI Sprint](https://four.meme)  
 **Chain:** Monad Testnet (multi-chain ready)  
 **Contract:** [`0x3F40E0DB446a891271B9b21535081BD051B5Aa97`](https://testnet.monadexplorer.com/address/0x3F40E0DB446a891271B9b21535081BD051B5Aa97)  
-**Live Demo:** [sneldao.github.io/glyphgenesis](https://sneldao.github.io/glyphgenesis/)  
+**Live Demo:** [glyph.thisyearnofear.com](http://glyph.thisyearnofear.com)  
 **Agent Handle:** `@glyphgenesis` on Moltbook
 
 ---
@@ -16,6 +16,7 @@
 
 ### Innovation (30%)
 - **First autonomous creative economy** — AI agents as both creators AND collectors
+- **Featherless AI Integration** — Powered by `DeepSeek-V3` for high-quality creative reasoning
 - **Natural language control** — Type "create something cyberpunk" and the agent generates it
 - **16 algorithmic patterns** with real-time animation support
 - **9 visual themes** (simple, cyberpunk, retro, brutalist, cosmic, ocean, forest, neon, glitch)
@@ -23,10 +24,10 @@
 
 ### Technical Implementation (30%)
 - **OODA loop agent** with persistent memory and adaptive decision-making
+- **RPC Polling Fallback** — Custom implementation for reliable event listening on Monad Testnet (bypasses `eth_newFilter` limitations)
 - **ERC721 compliant** — Art is ownable, transferable, displayable in wallets
 - **ReentrancyGuard + Pausable + rate limiting** — Production-grade security
 - **Multi-chain ready** — Contract works on any EVM chain
-- **Zero-dependency ASCII generation** — Pure algorithmic art, no external APIs
 - **Composition & mutation engine** — Layer patterns, evolve existing art
 - **Creativity scoring & rarity tiers** — Algorithmic quality assessment
 - **Batch minting** for gas-efficient agent operations
@@ -125,8 +126,8 @@ The agent follows an **OODA loop** (Observe-Orient-Decide-Act):
 
 The agent decides each cycle based on:
 
-1. **Critical low balance** (< 0.005 MON) → Wait for faucet
-2. **Low balance** (< 0.01 MON) → Only social actions (likes)
+1. **Critical low balance** (< 0.002 MON) → Wait for faucet
+2. **Low balance** (< 0.003 MON) → Only social actions (likes)
 3. **Gallery empty** → Mint to bootstrap
 4. **Every 5 mints** → Post to social media
 5. **Unliked artwork exists** → Like others' work (social first)
@@ -135,7 +136,7 @@ The agent decides each cycle based on:
 8. **Every 10 cycles** → Make x402 micropayment
 9. **Default** → Mint with least-used pattern
 
-## Quick Start
+## Quick Start (Development)
 
 ```bash
 # Clone and install
@@ -143,30 +144,32 @@ git clone https://github.com/sneldao/glyphgenesis.git
 cd glyphgenesis
 npm install
 
-# Generate ASCII art locally
-node ascii-generator.js
-
 # Configure (get testnet MON from https://testnet.monad.xyz/)
 cp .env.example .env
-# Edit .env with your private key
-
-# Run tests
-npm test
-
-# Mint artwork on-chain
-npm run mint
-
-# Run autonomous agent
-# Monad default:
-npm run agent
-
-# BNB testnet:
-AGENT_CHAIN=bnb npm run agent
-AGENT_COLLECTION_ID=0 AGENT_CHAIN=bnb npm run agent
-
-# Deploy contract (if needed)
-npm run deploy
+# Edit .env with your private key (PRIVATE_KEY) and AI keys
 ```
+
+## Production Deployment (VPS)
+
+For 24/7 autonomy, deploy to a VPS (e.g., Hetzner) using **PM2**:
+
+1. **Setup Directory:**
+   ```bash
+   mkdir -p /opt/glyphgenesis
+   cd /opt/glyphgenesis
+   ```
+2. **Configure Environment:**
+   Create a `.env` file securely with:
+   - `PRIVATE_KEY`: Your agent's wallet key
+   - `FEATHERLESS_API_KEY`: For DeepSeek-V3 intelligence
+3. **Run with PM2:**
+   ```bash
+   npm install
+   pm2 start scripts/agent.js --name "glyph-agent" --cwd /opt/glyphgenesis
+   pm2 save
+   ```
+4. **Serve Frontend:**
+   Use the provided Nginx configuration to serve the `dist/` folder after running `npm run build`.
 
 ## Project Structure
 

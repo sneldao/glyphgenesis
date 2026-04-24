@@ -10,6 +10,7 @@ import { renderFooter } from './src/components/footer.js';
 import { renderOnboarding, hasCompletedOnboarding, resetOnboarding } from './src/components/onboarding.js';
 import { subscribeToEvents } from './src/contract.js';
 import { runRuntimeSmokeChecks } from './src/health.js';
+import { initCommandPalette } from './src/components/cmd-palette.js';
 
 let galleryReady = false;
 let galleryRefreshTimer = null;
@@ -48,6 +49,7 @@ async function init() {
     }
 
     setupListeners();
+    initCommandPalette();
 
     void hydrateGeneratorSection(generatorShell);
     void hydrateGallerySection(galleryShell);

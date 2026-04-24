@@ -11,9 +11,11 @@ import { generate as patternGenerate } from './ascii-generator.mjs';
 // OpenAI integration for creative generation
 export class AIGenerator {
   constructor(apiKey = null) {
-    this.apiKey = apiKey || process.env.OPENAI_API_KEY;
-    this.model = 'gpt-4o-mini'; // Fast and cost-effective
-    this.enabled = !!this.apiKey;
+    // If apiKey is passed but is an empty string, we should still fallback to env vars
+    this.apiKey = (apiKey && apiKey.length > 0) ? apiKey : (process.env.FEATHERLESS_API_KEY || process.env.OPENAI_API_KEY);
+    this.baseUrl = process.env.AI_BASE_URL || 'https://api.featherless.ai/v1';
+    this.model = process.env.AI_MODEL || 'deepseek-ai/DeepSeek-V3-0324';
+    this.enabled = !!(this.apiKey && this.apiKey.length > 0);
   }
 
   /**
@@ -26,7 +28,6 @@ export class AIGenerator {
     const { width = 40, height = 20, theme = 'simple' } = options;
 
     if (!this.enabled) {
-      // Fallback to pattern generation
       console.log('[AI] No API key, using pattern fallback');
       return this.fallbackGenerate(prompt, options);
     }
@@ -40,18 +41,10 @@ Rules:
 4. Match the requested theme: ${theme}
 5. Make it visually interesting with good contrast
 6. Center the subject
-7. NO code blocks, NO markdown, JUST the ASCII art
-
-Themes to reference:
-- simple: clean lines, minimal chars
-- cyberpunk: neon boxes, tech symbols, grid lines
-- retro: 80s aesthetic, stars, circles
-- cosmic: stars, spirals, celestial
-- ocean: waves, bubbles, sea life
-- forest: trees, leaves, nature`;
+7. NO code blocks, NO markdown, JUST the ASCII art`;
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,32 +56,32 @@ Themes to reference:
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt }
           ],
-          max_tokens: 500,
-          temperature: 0.8
+          max_tokens: 1000,
+          temperature: 0.7
         })
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`AI API error (${response.status}): ${errorData.error?.message || response.statusText}`);
       }
 
       const data = await response.json();
       const content = data.choices[0].message.content.trim();
 
-      // Validate and sanitize the output
-      const lines = content.split('\n').slice(0, height);
-      const sanitized = lines.map(line => 
+      // Sanitization: Remove potential markdown artifacts and fix dimensions
+      const sanitizedContent = content.replace(/```[a-z]*\n?|```/gi, '').trim();
+      const lines = sanitizedContent.split('\n').slice(0, height);
+      const output = lines.map(line => 
         line.slice(0, width).padEnd(width, ' ')
       ).join('\n');
 
-      console.log('[AI] Generated:', prompt.substring(0, 30));
-
       return {
-        content: sanitized,
+        content: output,
         prompt,
         metadata: {
           model: this.model,
-          tokens: data.usage,
+          provider: this.baseUrl.includes('featherless') ? 'featherless' : 'openai',
           theme,
           generated: new Date().toISOString()
         }

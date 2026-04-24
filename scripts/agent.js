@@ -7,7 +7,11 @@ import { AgentMemory } from '../src/memory.mjs';
 import { SocialPoster } from '../src/social.mjs';
 import { CHAINS, MONAD_ABI, BNB_ABI } from '../src/contract.js';
 
-dotenv.config();
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: join(__dirname, '..', '.env') });
 
 const INTERVAL = parseInt(process.env.AGENT_INTERVAL_MS || '60000');
 const PATTERNS = ['circles', 'waves', 'diamond', 'grid', 'noise', 'star', 'spiral', 'heart'];
@@ -272,13 +276,13 @@ class GlyphAgent {
     const balance = parseFloat(state.balance);
 
     // === Critical low balance ===
-    if (balance < 0.005) {
+    if (balance < 0.002) {
       this._learn('Critical low balance — need faucet top-up');
       return { action: 'wait', reason: 'critical low balance, need faucet' };
     }
 
     // === Low balance — social only ===
-    if (balance < 0.01) {
+    if (balance < 0.003) {
       if (unliked.length > 0) return { action: 'like', target: unliked[0], reason: 'low balance, engage socially' };
       return { action: 'wait', reason: 'low balance, conserving' };
     }
@@ -588,6 +592,10 @@ class GlyphAgent {
 
     // Parse CLI args for natural language commands
     this.parseCLIArgs();
+    console.log(`[STARTUP] GlyphGenesis Agent initializing...`);
+    console.log(`[STARTUP] Chain: ${this.chainLabel}`);
+    console.log(`[STARTUP] Address: ${this.address}`);
+    console.log(`[STARTUP] Interval: ${INTERVAL}ms`);
 
     // Graceful shutdown
     const shutdown = () => {
