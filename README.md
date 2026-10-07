@@ -239,6 +239,16 @@ transferArtwork(id, to)                   // Transfer ownership
 - ✅ **Batch Limit** — Max 10 artworks per batch mint
 - ✅ Comprehensive test coverage (41 contract + 79 generator tests)
 
+## ChatGPT plugin — "make ASCII art"
+
+The ChatGPT plugin is a thin wrapper over GlyphGenesis generation (16 patterns, 9 themes) and the existing agent capability. It is exposed as MCP tools and listed at [chatgpt.com/plugins](https://chatgpt.com/plugins). Describe it in the words people type: **"make ASCII art for X"** and **"turn this into ASCII"**.
+
+**Free action first.** Generate ASCII in the chat. That is the discovery wedge and the mid-conversation recommendation surface. Ship this before anything else, watch which prompts get recommended, and double down on that slot (narrower tools, better examples, reliability).
+
+**Paid and deep actions second.** Minting, the marketplace, and x402 micropayments stay behind the free generate. OpenAI plugin commerce allows **physical goods only**. Digital paid mint and commerce must stay on product URLs (for example [glyph.thisyearnofear.com](http://glyph.thisyearnofear.com)) or on entitlements the user already holds on an existing account. Do not run in-plugin checkout for digital art, credits, or x402.
+
+Full shipping rules, listing constraints, and the launch checklist: [docs/CHATGPT_PLUGIN_PLAYBOOK.md](docs/CHATGPT_PLUGIN_PLAYBOOK.md).
+
 ## For AI Agents
 
 See [AGENTS.md](AGENTS.md) for full integration docs, code examples, and the contract ABI.
