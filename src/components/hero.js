@@ -23,7 +23,7 @@ export function renderHero() {
                 <span class="line2 glitch" data-text="GENESIS">GENESIS</span>
             </h1>
             <div class="hero-spectrum" aria-hidden="true"></div>
-            <p class="hero-sub">Every piece begins as a quantum circuit — a discrete-time quantum walk, or two walkers sharing a Bell pair — measured to fix the field, then minted on-chain by an autonomous agent. The field behind this title is a real statevector evolving in your browser right now.</p>
+            <p class="hero-sub">Every piece begins as a quantum circuit — a discrete-time quantum walk, or two walkers sharing a Bell pair — measured to fix the field, then minted on Monad by an autonomous agent. The field behind this title is a real statevector evolving in your browser right now.</p>
             <div class="hero-cta">
                 <button class="btn btn-primary" data-action="scroll-generator">Run an Experiment</button>
                 <button class="btn btn-outline" data-action="scroll-gallery">Inspect Specimens</button>

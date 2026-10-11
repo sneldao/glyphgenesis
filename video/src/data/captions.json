@@ -1,0 +1,227 @@
+[
+ {
+  "text": "What you're looking at isn't a drawing.",
+  "start": 30,
+  "end": 100
+ },
+ {
+  "text": "It's a probability field \u2014",
+  "start": 107,
+  "end": 167
+ },
+ {
+  "text": "the measurement statistics of a quantum walk,",
+  "start": 169,
+  "end": 251
+ },
+ {
+  "text": "rendered as light.",
+  "start": 253,
+  "end": 301
+ },
+ {
+  "text": "GlyphGenesis is a generative art instrument",
+  "start": 330,
+  "end": 419
+ },
+ {
+  "text": "where the artwork is the quantum measurement.",
+  "start": 424,
+  "end": 517
+ },
+ {
+  "text": "Here's the pipeline.",
+  "start": 555,
+  "end": 594
+ },
+ {
+  "text": "A circuit spec \u2014",
+  "start": 601,
+  "end": 640
+ },
+ {
+  "text": "a coin-steered walker on a grid \u2014",
+  "start": 642,
+  "end": 711
+ },
+ {
+  "text": "compiles to a Qiskit circuit.",
+  "start": 713,
+  "end": 771
+ },
+ {
+  "text": "It runs on a real backend with finite shots.",
+  "start": 783,
+  "end": 883
+ },
+ {
+  "text": "The counts collapse into a density field.",
+  "start": 886,
+  "end": 974
+ },
+ {
+  "text": "Probability becomes glyph weight;",
+  "start": 977,
+  "end": 1045
+ },
+ {
+  "text": "amplitude phase becomes colour.",
+  "start": 1047,
+  "end": 1124
+ },
+ {
+  "text": "Three specimens.",
+  "start": 1140,
+  "end": 1181
+ },
+ {
+  "text": "A two-dimensional walk, where a single shared",
+  "start": 1184,
+  "end": 1280
+ },
+ {
+  "text": "coin entangles the spatial axes \u2014",
+  "start": 1282,
+  "end": 1373
+ },
+ {
+  "text": "the interference you see can't come from",
+  "start": 1375,
+  "end": 1438
+ },
+ {
+  "text": "independent walkers.",
+  "start": 1440,
+  "end": 1491
+ },
+ {
+  "text": "An entangled pair:",
+  "start": 1495,
+  "end": 1551
+ },
+ {
+  "text": "two walkers sharing a Bell state.",
+  "start": 1553,
+  "end": 1630
+ },
+ {
+  "text": "That diagonal ridge is the entanglement.",
+  "start": 1632,
+  "end": 1720
+ },
+ {
+  "text": "And a wave sweep \u2014",
+  "start": 1723,
+  "end": 1783
+ },
+ {
+  "text": "twin ballistic peaks, frozen mid-spread.",
+  "start": 1785,
+  "end": 1889
+ },
+ {
+  "text": "Then the physics check.",
+  "start": 1935,
+  "end": 1981
+ },
+ {
+  "text": "Measure the spread at four, eight, sixteen",
+  "start": 1993,
+  "end": 2075
+ },
+ {
+  "text": "steps \u2014",
+  "start": 2077,
+  "end": 2104
+ },
+ {
+  "text": "it doubles, then doubles again.",
+  "start": 2106,
+  "end": 2176
+ },
+ {
+  "text": "Linear.",
+  "start": 2180,
+  "end": 2202
+ },
+ {
+  "text": "Ballistic.",
+  "start": 2209,
+  "end": 2242
+ },
+ {
+  "text": "A classical random walk grows by the square",
+  "start": 2245,
+  "end": 2324
+ },
+ {
+  "text": "root.",
+  "start": 2326,
+  "end": 2341
+ },
+ {
+  "text": "Quantum mechanics you can verify with a ruler.",
+  "start": 2350,
+  "end": 2442
+ },
+ {
+  "text": "Every specimen carries its full circuit spec",
+  "start": 2490,
+  "end": 2572
+ },
+ {
+  "text": "on-chain \u2014",
+  "start": 2574,
+  "end": 2608
+ },
+ {
+  "text": "mode, backend, shots, seed.",
+  "start": 2610,
+  "end": 2697
+ },
+ {
+  "text": "Anyone can re-run the circuit and verify",
+  "start": 2706,
+  "end": 2786
+ },
+ {
+  "text": "the art is what it claims.",
+  "start": 2788,
+  "end": 2854
+ },
+ {
+  "text": "On real hardware, each mint is literally",
+  "start": 2857,
+  "end": 2944
+ },
+ {
+  "text": "unrepeatable \u2014",
+  "start": 2946,
+  "end": 2987
+ },
+ {
+  "text": "the NFT is the only record of that measurement.",
+  "start": 2989,
+  "end": 3088
+ },
+ {
+  "text": "The observatory runs live in the browser",
+  "start": 3135,
+  "end": 3214
+ },
+ {
+  "text": "an exact statevector, evolving in your tab.",
+  "start": 3224,
+  "end": 3332
+ },
+ {
+  "text": "GlyphGenesis.",
+  "start": 3390,
+  "end": 3429
+ },
+ {
+  "text": "Art, measured.",
+  "start": 3440,
+  "end": 3496
+ }
+]
