@@ -5,35 +5,35 @@
 
 /* === COLOR TOKENS === */
 :root {
-    /* Backgrounds */
-    --color-bg: #050508;
-    --color-surface: #0d0d14;
-    --color-surface2: #12121c;
-    --color-surface-hover: #18182a;
+    /* Backgrounds — warm paper / archive stock */
+    --color-bg: #f4f0e6;
+    --color-surface: #fdfaf2;
+    --color-surface2: #ece6d4;
+    --color-surface-hover: #e6dfcc;
 
     /* Borders */
-    --color-border: #1e1e2e;
-    --color-border-focus: #6d28d9;
+    --color-border: #d8d0b8;
+    --color-border-focus: #1f46b4;
 
-    /* Text */
-    --color-text: #e2e8f0;
-    --color-muted: #8896ab;
-    --color-subtle: #4a5568;
+    /* Text — ink */
+    --color-text: #171a21;
+    --color-muted: #5b6272;
+    --color-subtle: #9a937c;
 
-    /* Accent palette — use these consistently throughout */
-    --color-accent: #7c3aed;      /* Primary — purple, buttons, highlights */
-    --color-accent-hover: #6d28d9;
-    --color-accent2: #06b6d4;     /* Secondary — cyan, links, hover states */
-    --color-accent3: #f59e0b;     /* Tertiary — amber, prices, warnings */
-    --color-green: #00ff41;       /* Success — mints, connected, positive */
-    --color-red: #ff2d55;         /* Error — failures, destructive */
+    /* Accent palette — emission spectrum */
+    --color-accent: #1f46b4;      /* Primary — spectral blue */
+    --color-accent-hover: #173889;
+    --color-accent2: #0c8f84;     /* Secondary — teal */
+    --color-accent3: #d97413;     /* Tertiary — sodium amber */
+    --color-green: #0e8a45;       /* Success */
+    --color-red: #c82436;         /* Error — hydrogen-alpha red */
 
     /* Rarity colors */
-    --rarity-common: #8896ab;
-    --rarity-uncommon: #22c55e;
-    --rarity-rare: #06b6d4;
-    --rarity-epic: #a855f7;
-    --rarity-legendary: #f59e0b;
+    --rarity-common: #8a8574;
+    --rarity-uncommon: #189a5a;
+    --rarity-rare: #1f46b4;
+    --rarity-epic: #6b3fc0;
+    --rarity-legendary: #d97413;
 }
 
 /* === SPACING SCALE === */
@@ -42,7 +42,9 @@
 
 /* === TYPOGRAPHY === */
 :root {
-    --font-mono: 'Courier New', 'Consolas', monospace;
+    --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-body: 'Spectral', Georgia, serif;
     --font-size-xs: .62rem;     /* 10px — labels, tags, muted text */
     --font-size-sm: .72rem;     /* 12px — body small, descriptions */
     --font-size-base: .82rem;   /* 14px — body default */
@@ -74,12 +76,12 @@
 
 /* === SHADOWS === */
 :root {
-    --shadow-sm: 0 2px 8px rgba(0,0,0,.3);
-    --shadow: 0 8px 24px rgba(0,0,0,.4);
-    --shadow-lg: 0 16px 40px rgba(0,0,0,.5);
-    --shadow-glow-accent: 0 0 20px rgba(124,58,237,.5);
-    --shadow-glow-accent2: 0 0 20px rgba(6,182,212,.3);
-    --shadow-glow-green: 0 0 12px rgba(0,255,65,.3);
+    --shadow-sm: 0 1px 3px rgba(23,26,33,.08);
+    --shadow: 0 6px 20px rgba(23,26,33,.10);
+    --shadow-lg: 0 14px 44px rgba(23,26,33,.14);
+    --shadow-glow-accent: 0 0 0 1px rgba(31,70,180,.25);
+    --shadow-glow-accent2: 0 0 0 1px rgba(12,143,132,.25);
+    --shadow-glow-green: 0 0 0 1px rgba(14,138,69,.25);
 }
 
 /* === TRANSITIONS === */

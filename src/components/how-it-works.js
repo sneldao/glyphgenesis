@@ -11,7 +11,7 @@ export function renderHowItWorks() {
     section.id = 'how-it-works';
     section.setAttribute('aria-labelledby', 'how-it-works-title');
     section.innerHTML = `
-        <span class="section-label">// 01 — Protocol</span>
+        <span class="section-label">FILE Nº 01 — Protocol</span>
         <h2 class="section-title" id="how-it-works-title">How Users Interact with the <span>Smart Contract</span></h2>
         <div class="steps-grid">
             <div class="step-card">

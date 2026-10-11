@@ -1,18 +1,30 @@
 :root {
-    --bg: #050508;
-    --surface: #0d0d14;
-    --surface2: #12121c;
-    --border: #1e1e2e;
-    --accent: #7c3aed;
-    --accent2: #06b6d4;
-    --accent3: #f59e0b;
-    --green: #00ff41;
-    --red: #ff2d55;
-    --text: #e2e8f0;
-    --muted: #8896ab;
-    --mono: 'Courier New', monospace;
+    /* Quantum Observatory — light edition.
+       Paper ground + emission-spectrum accents. */
+    --bg: #f4f0e6;
+    --surface: #fdfaf2;
+    --surface2: #ece6d4;
+    --border: #d8d0b8;
+    --accent: #1f46b4;
+    --accent2: #0c8f84;
+    --accent3: #d97413;
+    --green: #0e8a45;
+    --red: #c82436;
+    --text: #171a21;
+    --muted: #5b6272;
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --display: 'Fraunces', Georgia, serif;
+    --body: 'Spectral', Georgia, serif;
     --radius: 3px;
     --transition: .2s ease;
+
+    /* spectral line ramp — signature motif */
+    --spec-red: #c82436;
+    --spec-amber: #d97413;
+    --spec-green: #189a5a;
+    --spec-teal: #0c8f84;
+    --spec-blue: #1f46b4;
+    --spec-violet: #6b3fc0;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1093,6 +1105,7 @@ input[type="checkbox"] {
     border-radius: 3px;
     border-bottom: 2px solid rgba(0,0,0,0.3);
 }
+.modal-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,.85);

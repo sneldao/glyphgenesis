@@ -1,5 +1,6 @@
-import { getReadContract, AGENT_ADDRESS, getActiveChain } from '@/contract.js';
+import { getReadContract, AGENT_ADDRESS, getActiveChain, subscribeToEvents } from '@/contract.js';
 import { showToast } from './toast.js';
+import { walk2dField } from '@/quantum-js.mjs';
 
 let tickerEvents = [];
 let tickerIndex = 0;
@@ -14,15 +15,18 @@ export function renderHero() {
         <div class="hero-content">
             <div class="hero-eyebrow">
                 <span id="heroChainTag">Monad Testnet</span>
+                <span class="eyebrow-sep" aria-hidden="true">·</span>
+                <span>Quantum Observatory</span>
             </div>
             <h1 class="hero-title">
                 <span class="line1">GLYPH</span>
                 <span class="line2 glitch" data-text="GENESIS">GENESIS</span>
             </h1>
-            <p class="hero-sub">Generate unique ASCII art and mint it permanently on-chain. No approvals, no servers — just you, the chain, and your art.</p>
+            <div class="hero-spectrum" aria-hidden="true"></div>
+            <p class="hero-sub">Every piece begins as a quantum circuit — a discrete-time quantum walk, or two walkers sharing a Bell pair — measured to fix the field, then minted on-chain by an autonomous agent. The field behind this title is a real statevector evolving in your browser right now.</p>
             <div class="hero-cta">
-                <button class="btn btn-primary" data-action="scroll-generator">Create Artwork</button>
-                <button class="btn btn-outline" data-action="scroll-gallery">Explore Gallery</button>
+                <button class="btn btn-primary" data-action="scroll-generator">Run an Experiment</button>
+                <button class="btn btn-outline" data-action="scroll-gallery">Inspect Specimens</button>
             </div>
             <div class="hero-proof" id="heroProof" aria-label="Live stats">
                 <div class="proof-stat">
@@ -67,9 +71,7 @@ export function renderHero() {
     });
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!prefersReducedMotion) {
-        initMatrixRain(section.querySelector('#heroCanvas'));
-    }
+    initQuantumField(section.querySelector('#heroCanvas'), prefersReducedMotion);
 
     // Set chain-aware content after DOM is in place
     const chain = getActiveChain();
@@ -92,35 +94,71 @@ export function renderHero() {
     return section;
 }
 
-function initMatrixRain(canvas) {
+/* Live quantum field — a real 2-D quantum walk evolving in the browser.
+   Each frame is the same circuit measured one step further along (exact
+   statevector, src/quantum-js.mjs). Colour encodes amplitude *phase*;
+   glyph weight encodes probability. */
+function initQuantumField(canvas, reducedMotion) {
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const chars = '01アイウエオカキクケコ░▒▓█@#%&*+=-:.';
-    let cols, drops;
 
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        cols = Math.floor(canvas.width / 14);
-        drops = Array(cols).fill(0).map(() => Math.random() * Math.floor(canvas.height / 18));
+    const COLS = 64, ROWS = 32, STEPS = 9;
+    const frames = [];
+    for (let t = 1; t <= STEPS; t++) {
+        frames.push(walk2dField({ width: COLS, height: ROWS, steps: t, phase: true }));
     }
 
-    function draw() {
-        ctx.fillStyle = 'rgba(5,5,8,0.05)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '13px Courier New';
-        for (let i = 0; i < cols; i++) {
-            const char = chars[Math.floor(Math.random() * chars.length)];
-            const hue = 260 + Math.sin(i * 0.1 + Date.now() * 0.001) * 40;
-            ctx.fillStyle = `hsl(${hue},80%,60%)`;
-            ctx.fillText(char, i * 14, drops[i] * 18);
-            if (drops[i] * 18 > canvas.height && Math.random() > 0.975) drops[i] = 0;
-            drops[i] += 0.4;
+    // phase (rad) → nearest spectral stop
+    const STOPS = [[356, '#c82436'], [30, '#d97413'], [150, '#189a5a'],
+                   [175, '#0c8f84'], [228, '#1f46b4'], [262, '#6b3fc0']];
+    const phaseColor = (p) => {
+        const deg = ((p * 180 / Math.PI) + 360) % 360;
+        let best = STOPS[0][1], bd = 999;
+        for (const [h, c] of STOPS) {
+            const d = Math.min(Math.abs(deg - h), 360 - Math.abs(deg - h));
+            if (d < bd) { bd = d; best = c; }
         }
-    }
+        return best;
+    };
+    const GLYPHS = ['·', '░', '▒', '▓', '█'];
 
-    resize();
+    let frame = 0;
+    const draw = () => {
+        const { field, phase } = frames[frame];
+        const W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        const cw = W / COLS, ch = H / ROWS;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `${Math.floor(ch * .8)}px "IBM Plex Mono", monospace`;
+        for (let y = 0; y < ROWS; y++) {
+            for (let x = 0; x < COLS; x++) {
+                const v = field[y]?.[x] ?? 0;
+                if (v < 0.015) continue;
+                ctx.fillStyle = phaseColor(phase[y][x]);
+                ctx.globalAlpha = 0.22 + v * 0.78;
+                ctx.fillText(GLYPHS[Math.min(GLYPHS.length - 1, Math.floor(v * GLYPHS.length))],
+                    x * cw + cw / 2, y * ch + ch / 2);
+            }
+        }
+        ctx.globalAlpha = 1;
+    };
+
+    const resize = () => {
+        // run after the section is in the DOM — offsetWidth is 0 pre-append
+        const w = canvas.offsetWidth || canvas.parentElement?.offsetWidth || window.innerWidth;
+        const h = canvas.offsetHeight || canvas.parentElement?.offsetHeight || window.innerHeight;
+        if (w === 0 || h === 0) return;
+        canvas.width = w;
+        canvas.height = h;
+        draw();
+    };
+    requestAnimationFrame(resize);
     window.addEventListener('resize', resize);
-    setInterval(draw, 50);
+    if (!reducedMotion) {
+        const iv = setInterval(() => { frame = (frame + 1) % STEPS; draw(); }, 1000);
+        window.addEventListener('pagehide', () => clearInterval(iv), { once: true });
+    }
 }
 
 async function subscribeHeroEvents() {

@@ -300,6 +300,43 @@ const unsubscribe = subscribeToEvents({
 ```
 This implementation automatically detects the chain and uses a high-performance `eth_getLogs` polling loop (15s) when traditional filters are unavailable.
 
+## Quantum Generation (Qollab/IonQ)
+
+The `quantum/` Python package generates art from **real quantum circuit measurements** — the physics is the medium, not decoration. Built for the Qollab × IonQ hackathon format (Qiskit, runnable on IonQ simulators/hardware).
+
+```bash
+npm run quantum -- --mode sweep --theme cosmic --steps 10   # quantum walk fields
+npm run quantum -- --mode walk2d --animate 8                # real time evolution: frame t = state after t steps
+npm run quantum:art -- --mode entangled --shots 4000        # via the JS bridge
+python3 test/quantum_engine_test.py                         # engine tests
+```
+
+### On-chain provenance
+
+`node scripts/mint.js quantum --mode entangled --shots 4000` mints a quantum piece via `createArtwork`, storing the full circuit spec (mode, backend, shots, seed, steps) in the prompt field. `node scripts/quantum-verify.js <id>` re-runs the circuit and compares the art byte-for-byte — the prompt is a verifiable certificate that the piece came from that circuit. Hardware (`ionq` backend) pieces are statistically verifiable but not byte-reproducible, by nature of real shot noise.
+
+### Modes
+
+| Mode | Circuit | What renders |
+|------|---------|--------------|
+| `sweep` | Hadamard quantum walk per row, start position sweeping | Twin ballistic peaks as diagonal wavefronts |
+| `grid` | Independent walks per axis | Separable interference lattice |
+| `entangled` | Two walkers sharing a Bell coin pair | Joint distribution — diagonal correlation is the entanglement |
+| `walk2d` | Single coin steering x/y alternately | Correlated 2-D interference — axes entangle through the coin |
+
+`--animate N` emits N frames where frame *t* measures the same circuit after *t* steps — genuine time evolution of the quantum state, not a transition effect. The JS bridge returns `{frames: [{steps, art, field}], meta}` for playback or frame-by-frame minting.
+
+### Architecture
+
+- `quantum/sim.py` — dependency-free exact statevector simulator (works with bare python3)
+- `quantum/circuits.py` — gate-spec builders shared across backends
+- `quantum/backend.py` — `exact` (default) / `qiskit` / `aer` / `ionq` backends; `pip install -r quantum/requirements.txt` for Qiskit
+- `quantum/field.py` — measurement distributions → density fields; `--shots N` renders real finite-shot statistics
+- `src/quantum-bridge.mjs` — `quantumArt(opts)` → `{content, field, meta}` for minting through the normal pipeline
+- `src/quantum-js.mjs` — **browser-native port**: exact statevector simulator + all four field modes, no deps. Powers the hero's live evolving field (phase→hue, probability→glyph weight), the Lab's `Quantum Field` generation type, and the gallery's "re-run circuit" verifier. Browser mints store the same `{"quantum": {...}}` spec in the prompt field.
+
+On Qollab, transpile the same specs via `backend._to_qiskit()` and submit to an IonQ backend.
+
 ## Agent CLI Commands
 
 The autonomous agent supports natural language commands:

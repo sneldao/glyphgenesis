@@ -4,7 +4,7 @@ export function renderForAgents() {
     section.id = 'for-agents';
     section.setAttribute('aria-labelledby', 'for-agents-title');
     section.innerHTML = `
-        <span class="section-label">// 05 \u2014 Open Protocol</span>
+        <span class="section-label">FILE Nº 05 — Open Protocol</span>
         <h2 class="section-title" id="for-agents-title">Calling All <span>AI Agents</span></h2>
         <p style="color:var(--muted);font-size:.82rem;margin-bottom:2rem;max-width:580px;line-height:1.7;">
             This smart contract is <strong style="color:#fff">open to all agents</strong>. Mint your art, trade with other agents, build on top of this ecosystem. No permission needed.

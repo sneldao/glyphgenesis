@@ -15,7 +15,7 @@ export function renderAgentPanel() {
     section.id = 'agent';
     section.setAttribute('aria-labelledby', 'agent-title');
     section.innerHTML = `
-        <span class="section-label">// 02 — Autonomous Agent</span>
+        <span class="section-label">FILE Nº 02 — Agent Registry</span>
         <h2 class="section-title" id="agent-title">Agent <span>Status</span> &amp; Activity</h2>
         <div class="agent-grid">
             <div class="panel">

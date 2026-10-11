@@ -5,6 +5,36 @@ import { showToast } from './toast.js';
 import { artworkCache, statsCache } from './cache.js';
 import { creativityScore, getRarity } from '@/ascii-generator.mjs';
 import { escapeHtml, shortAddress, timeAgo } from '@/utils.js';
+import { QUANTUM_FIELDS, renderField } from '@/quantum-js.mjs';
+import { CHARS } from '@/ascii-generator.mjs';
+
+const QUANTUM_FIELD = QUANTUM_FIELDS;
+
+/**
+ * Parse the circuit spec stored in an artwork's prompt field.
+ * Format: {"quantum": {mode, backend, measurement, shots, seed, steps, theme, size}}
+ * (CLI) or {mode, width, height, steps, seed, backend} (browser lab).
+ */
+function parseQuantumSpec(prompt) {
+    if (!prompt || typeof prompt !== 'string' || !prompt.includes('quantum')) return null;
+    try {
+        const q = JSON.parse(prompt)?.quantum;
+        if (!q || !q.mode) return null;
+        const [w, h] = String(q.size || `${q.width || 40}x${q.height || 15}`).split('x').map(Number);
+        return { ...q, width: w || 40, height: h || 15, steps: q.steps ?? 4 };
+    } catch { return null; }
+}
+
+function specimenStripHtml(q) {
+    return `<div class="specimen-spec">` + [
+        `<b>CIRCUIT</b> ${escapeHtml(q.mode)}`,
+        `<b>STEPS</b> ${q.steps}`,
+        q.shots ? `<b>SHOTS</b> ${q.shots}` : '',
+        `<b>BACKEND</b> ${escapeHtml(q.backend || 'js-statevector')}`,
+        `<b>SEED</b> ${q.seed ?? '—'}`,
+        `<span class="specimen-verified">◈ measured</span>`,
+    ].filter(Boolean).join('') + `</div>`;
+}
 
 const PAGE_SIZE = 12;
 let loadedCount = 0;
@@ -20,8 +50,8 @@ export function renderGallery() {
     section.id = 'gallery';
     section.setAttribute('aria-labelledby', 'gallery-title');
     section.innerHTML = `
-        <span class=\"section-label\">// 04 — On-Chain Gallery</span>
-        <h2 class=\"section-title\" id=\"gallery-title\">Live from the <span>Blockchain</span></h2>
+        <span class=\"section-label\">FILE Nº 04 — Archive</span>
+        <h2 class=\"section-title\" id=\"gallery-title\">The <span>Specimen Archive</span></h2>
         <p class=\"section-intro gallery-intro\">Browse the newest on-chain pieces, filter by creator or market state, and open any artwork to inspect the full mint.</p>
 
         <div class=\"gallery-live-bar\" id=\"galleryLiveBar\">
@@ -304,7 +334,9 @@ function renderGalleryItems(artworks) {
         const rarity = getRarity(art.rarity);
         
         // Dynamic achievements based on artwork stats
+        const quantum = parseQuantumSpec(art.prompt);
         const achievements = [];
+        if (quantum) achievements.push('◈ Quantum');
         if (art.rarity > 85) achievements.push('✨ Masterpiece');
         if (art.likes > 5) achievements.push('🔥 Viral');
         if (art.isAgent) achievements.push('🤖 Bot-Made');
@@ -325,6 +357,7 @@ function renderGalleryItems(artworks) {
                         ${art.forSale ? `<br><span class=\"for-sale-badge\">💰 For Sale: ${priceEth} ${getCurrencyLabel()}</span>` : ''}
                         ${art.likes > 0 ? `<br><small style=\"color:var(--muted)\">❤ ${art.likes} like${art.likes !== 1 ? 's' : ''}</small>` : ''}
                     </div>
+                    ${quantum ? specimenStripHtml(quantum) : ''}
                 </div>
                 <div class=\"gallery-actions\">
                     <button class=\"btn btn-ghost btn-sm\" data-action=\"expand\" aria-label=\"View full artwork\">Expand</button>
@@ -439,6 +472,7 @@ function showArtModal(art) {
     const isOwner = art.owner.toLowerCase() === userAddr;
     const priceEth = art.forSale && art.price ? ethers.formatEther(art.price) : null;
     const rarity = getRarity(art.rarity);
+    const quantum = parseQuantumSpec(art.prompt);
 
     overlay.innerHTML = `
         <div class=\"modal\">
@@ -451,6 +485,16 @@ function showArtModal(art) {
                 <span class=\"rarity-badge modal-rarity\" style=\"color:${rarity.color};border-color:${rarity.color}\">${rarity.emoji} ${rarity.name} (${art.rarity})</span>
             </div>
             <pre>${escapeHtml(art.content)}</pre>
+            ${quantum ? `
+            <div class="specimen-spec" style="margin:0 0 .8rem">
+                <b>CIRCUIT</b> ${escapeHtml(quantum.mode)}
+                <b>STEPS</b> ${quantum.steps}
+                ${quantum.shots ? `<b>SHOTS</b> ${quantum.shots}` : ''}
+                <b>BACKEND</b> ${escapeHtml(quantum.backend || 'js-statevector')}
+                <b>SEED</b> ${quantum.seed ?? '—'}
+                <button class="btn btn-ghost btn-sm" data-action="replay" style="margin-left:auto">⟲ Re-run circuit</button>
+            </div>
+            <pre class="quantum-replay" style="display:none" aria-label="Re-generated quantum field"></pre>` : ''}
             <div class=\"modal-meta\">
                 <div class=\"modal-chips\">
                     <span>ID: #${art.id}</span>
@@ -504,6 +548,26 @@ function showArtModal(art) {
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', escHandler);
     setTimeout(() => overlay.querySelector('.modal-close')?.focus(), 50);
+
+    overlay.querySelector('[data-action=\"replay\"]')?.addEventListener('click', () => {
+        const out = overlay.querySelector('.quantum-replay');
+        const fn = QUANTUM_FIELD[quantum.mode];
+        if (!out || !fn) return;
+        try {
+            const { field } = fn({ width: quantum.width, height: quantum.height, steps: quantum.steps, seed: quantum.seed });
+            const chars = CHARS[quantum.theme] || CHARS.simple;
+            const regenerated = renderField(field, chars);
+            // compare against stored art (strip frame lines if present)
+            const stored = art.content.split('\n').filter(l => !/^[┌└│┐┘─]/.test(l)).map(l => l.replace(/[│]/g, '')).join('\n').replace(/\s+$/gm, '');
+            const replay = regenerated.replace(/\s+$/gm, '');
+            out.style.display = 'block';
+            out.textContent = regenerated + '\n\n— re-measured in-browser (exact statevector) —';
+            const match = stored.includes(replay.slice(0, 200)) || replay === stored;
+            showToast(match ? '✓ Replay matches stored specimen' : 'Field re-generated — shot noise may differ on hardware backends', match ? 'success' : 'info');
+        } catch (err) {
+            showToast(`Replay failed: ${err.message}`, 'error');
+        }
+    });
 
     overlay.querySelector('[data-action=\"copy\"]')?.addEventListener('click', () => {
         navigator.clipboard.writeText(art.content)

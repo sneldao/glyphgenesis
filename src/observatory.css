@@ -1,0 +1,360 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   OBSERVATORY — light edition
+   Override layer over style.css. Language: instrument panel + archive
+   specimen plate + emission-spectrum accents.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── ground: warm paper + faint ruled lab grid ─── */
+body {
+    font-family: var(--body);
+    background-color: var(--bg);
+    background-image:
+        repeating-linear-gradient(0deg, rgba(31,70,180,.045) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(31,70,180,.045) 0 1px, transparent 1px 28px);
+}
+/* retire the CRT scanlines */
+body::after { background: none; }
+
+::selection { background: var(--accent); color: #fff; }
+
+/* ─── spectrum rule — the signature motif ─── */
+.spectrum-rule,
+.hero-spectrum {
+    height: 4px;
+    border: 0;
+    background: linear-gradient(90deg,
+        var(--spec-red) 0 16%, var(--spec-amber) 16% 34%,
+        var(--spec-green) 34% 50%, var(--spec-teal) 50% 66%,
+        var(--spec-blue) 66% 84%, var(--spec-violet) 84% 100%);
+}
+
+/* ─── type system ─── */
+.section-title {
+    font-family: var(--display);
+    font-weight: 600;
+    letter-spacing: -.02em;
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    line-height: 1.02;
+    color: var(--text);
+    font-style: normal;
+}
+.section-title span { color: var(--accent); font-style: normal; }
+
+/* "// 03 — …" labels → instrument file-number kickers */
+.section-label {
+    font-family: var(--mono);
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .32em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    display: inline-block;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 4px 10px;
+    margin-bottom: 1rem;
+}
+.section-intro {
+    font-family: var(--body);
+    font-size: 1.05rem;
+    color: var(--muted);
+    max-width: 60ch;
+    line-height: 1.6;
+}
+
+/* ─── nav ─── */
+nav {
+    background: rgba(244,240,230,.88);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+}
+.nav-logo {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -.01em;
+    color: var(--text);
+}
+.nav-logo span { color: var(--accent); }
+.nav-links a {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.nav-links a:hover { color: var(--accent); }
+.nav-wallet, .btn {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    border-radius: 0;
+}
+.nav-wallet.connected:hover { background: var(--green); color: #fff; }
+.chain-selector {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 0;
+}
+.chain-btn { color: var(--muted); font-family: var(--mono); }
+.chain-btn.active { background: var(--accent); color: #fff; }
+.connection-status { color: var(--muted); font-family: var(--mono); }
+.nav-balance { color: var(--text); font-family: var(--mono); }
+
+/* ─── buttons → instrument toggles ─── */
+.btn, .gen-btn {
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    border: 1px solid var(--text);
+    border-radius: 0;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 3px 3px 0 var(--text);
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+.btn:hover, .gen-btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--text); }
+.btn:active, .gen-btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--text); }
+.btn-primary, .btn-mint {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 3px 3px 0 var(--text);
+}
+.btn-primary:hover, .btn-mint:hover { box-shadow: 4px 4px 0 var(--text); }
+.btn-outline { background: transparent; }
+.btn-ghost {
+    border-color: var(--border);
+    box-shadow: none;
+    color: var(--muted);
+}
+.btn-ghost:hover { border-color: var(--text); color: var(--text); box-shadow: 2px 2px 0 var(--text); }
+
+/* ─── hero ─── */
+.hero {
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+}
+#heroCanvas { opacity: 1; width: 100%; height: 100%; }
+.hero-eyebrow {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: inline-block;
+    padding: 5px 12px;
+}
+.hero-title {
+    font-family: var(--display);
+    font-weight: 800;
+    font-variation-settings: 'opsz' 144;
+    font-size: clamp(3.4rem, 11vw, 8.5rem);
+    line-height: .92;
+    letter-spacing: -.035em;
+    color: var(--text);
+}
+.hero-title .line1 { color: var(--text); }
+.hero-title .glitch { display: block; }
+.hero-title .line2 {
+    display: block;
+    color: transparent;
+    -webkit-text-stroke: 2px var(--text);
+}
+/* retire the glitch pseudo-elements — the live field is the motion */
+.glitch::before, .glitch::after { content: none; }
+.hero-eyebrow::before, .hero-eyebrow::after { content: none; }
+.hero-sub {
+    font-family: var(--body);
+    font-size: 1.15rem;
+    color: var(--muted);
+    max-width: 56ch;
+    line-height: 1.6;
+}
+.hero-proof { border: 1px solid var(--border); background: var(--surface); }
+.proof-num {
+    font-family: var(--display);
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 1.6rem;
+}
+.proof-label {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.proof-contract { color: var(--accent); font-family: var(--mono); font-size: .7rem; }
+
+/* ticker → instrument readout strip */
+.hero-ticker {
+    background: var(--text);
+    color: #f4f0e6;
+    border: 0;
+    font-family: var(--mono);
+}
+.ticker-label { color: var(--spec-amber); }
+.ticker-action { color: var(--spec-teal); }
+.ticker-message { color: #e8e3d3; }
+.ticker-counter { color: var(--muted); }
+.pulse-dot { background: var(--spec-red); }
+.hero-scroll { color: var(--muted); font-family: var(--mono); }
+
+/* ─── dividers → spectrum hairlines ─── */
+.divider { border: 0; height: 1px; background: var(--border); position: relative; }
+.divider::after {
+    content: '';
+    position: absolute; left: 0; top: -1.5px;
+    width: 120px; height: 4px;
+    background: linear-gradient(90deg,
+        var(--spec-red), var(--spec-amber), var(--spec-green),
+        var(--spec-teal), var(--spec-blue), var(--spec-violet));
+}
+
+/* ─── cards & surfaces ─── */
+.section-loading, .error-box, .stat-card, .hiw-card, .agent-panel,
+.onboarding-card, .for-agents-card, .featured-art {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 3px 3px 0 rgba(23,26,33,.9);
+}
+
+/* ─── art viewports stay dark — the instrument display ─── */
+.generator-output,
+.gallery-item pre,
+.modal pre {
+    background: #14161c;
+    border: 1px solid var(--text);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+}
+.gallery-item pre, .modal pre {
+    color: #9fe8c9;               /* phosphor-green glyphs */
+    text-shadow: 0 0 6px rgba(87,232,138,.25);
+}
+
+/* ─── gallery → specimen plates ─── */
+.gallery-item {
+    background: var(--surface);
+    border: 1px solid var(--text);
+    border-radius: 0;
+    box-shadow: 4px 4px 0 rgba(23,26,33,.85);
+}
+.gallery-item::before {
+    content: 'SPECIMEN';
+    position: absolute;
+    top: .55rem; right: .7rem;
+    font-family: var(--mono);
+    font-size: .55rem;
+    letter-spacing: .3em;
+    color: var(--subtle, #9a937c);
+}
+.gallery-meta strong { font-family: var(--display); font-weight: 600; }
+.rarity-badge {
+    font-family: var(--mono);
+    border-radius: 0;
+    letter-spacing: .12em;
+}
+.agent-badge-sm {
+    background: var(--accent);
+    font-family: var(--mono);
+    letter-spacing: .2em;
+    border-radius: 0;
+}
+.for-sale-badge { font-family: var(--mono); color: var(--accent3); }
+
+/* specimen provenance strip — rendered when prompt parses as quantum spec */
+.specimen-spec {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin-top: .5rem;
+    padding-top: .5rem;
+    border-top: 1px dashed var(--border);
+    font-family: var(--mono);
+    font-size: .58rem;
+    letter-spacing: .08em;
+    color: var(--muted);
+}
+.specimen-spec b { color: var(--accent); font-weight: 600; }
+.specimen-verified {
+    color: var(--spec-teal);
+    font-weight: 600;
+}
+
+/* filter chips → dial markings */
+.filter-btn {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--surface);
+    color: var(--muted);
+}
+.filter-btn.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+}
+
+/* ─── forms → instrument inputs ─── */
+input[type="text"], input[type="number"], select, textarea {
+    font-family: var(--mono);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    color: var(--text);
+}
+input:focus-visible, select:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 2px 2px 0 var(--accent);
+}
+.field-label {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.generator-controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+}
+
+/* ─── toasts / modals / palette ─── */
+.toast {
+    font-family: var(--mono);
+    border-radius: 0;
+    border: 1px solid var(--text);
+    box-shadow: 3px 3px 0 rgba(23,26,33,.9);
+}
+.modal { border-radius: 0; border: 1px solid var(--text); box-shadow: 6px 6px 0 rgba(23,26,33,.9); }
+.cmd-palette-box, .cmd-palette > *:first-child { border-radius: 0; }
+
+/* ─── misc atoms ─── */
+.loading, .empty { font-family: var(--mono); color: var(--muted); }
+.status-message { font-family: var(--mono); }
+.creativity-score { font-family: var(--mono); }
+.stat-card .stat-num, .stat-value {
+    font-family: var(--display);
+    font-weight: 700;
+    color: var(--accent);
+}
+.stat-label { font-family: var(--mono); letter-spacing: .2em; text-transform: uppercase; }
+
+/* footer */
+.footer { border-top: 1px solid var(--border); background: var(--surface2); }
+.footer a { color: var(--accent); }
+
+/* ─── reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+    .btn, .gen-btn, .gallery-item { transition: none; }
+}

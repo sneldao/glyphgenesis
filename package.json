@@ -13,8 +13,10 @@
     "deploy:bnb": "npx hardhat run scripts/deploy-bnb.js --network bnbTestnet",
     "mint": "node scripts/mint.js",
     "agent": "node scripts/agent.js",
+    "quantum": "python3 -m quantum",
+    "quantum:art": "node scripts/quantum-art.js",
     "smoke": "node test/runtime-smoke.test.mjs",
-    "test": "node test/ascii-generator.test.mjs && node test/runtime-smoke.test.mjs && echo 'Run hardhat test for contract tests'"
+    "test": "node test/ascii-generator.test.mjs && node test/runtime-smoke.test.mjs && python3 test/quantum_engine_test.py && echo 'Run hardhat test for contract tests'"
   },
   "keywords": [
     "ai-agent",

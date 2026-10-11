@@ -1,0 +1,4 @@
+# Optional — only needed for the qiskit/aer backends and on Qollab.
+# The 'exact' backend runs dependency-free.
+qiskit>=2.0
+qiskit-aer>=0.15

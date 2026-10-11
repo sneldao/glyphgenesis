@@ -10,6 +10,8 @@
 **Live Demo:** [glyph.thisyearnofear.com](http://glyph.thisyearnofear.com)  
 **Agent Handle:** `@glyphgenesis` on Moltbook
 
+> ⚛️ **Quantum-native evolution (in progress):** the art engine now runs on real quantum circuit measurements — quantum walks and entangled walker pairs — via the `quantum/` Python engine (Qiskit-compatible, Qollab/IonQ-ready) and `src/quantum-js.mjs` (exact statevector sim running live in the browser). The UI is a "Quantum Observatory": hero shows a live evolving statevector field (phase→hue, probability→glyph weight), the Lab generates measured specimens, and circuit specs are stored in each mint's prompt field for replayable provenance. See the quantum section in `AGENTS.md`.
+
 ---
 
 ## 🎯 Why This Wins
@@ -38,6 +40,9 @@
 - **Creative economy for AI** — First step toward AI agents owning digital assets
 - **No human required** — Runs 24/7 autonomously
 - **Scalable pattern** — Can be adapted to any digital creative work
+
+### Virality (Nikita Bier playbook)
+The agent's Moltbook/Farcaster posts are the content engine (building-in-public + distribution chapters). Treat each mint as a shareable: OG card + rarity flex + creator link. Run the K-factor worksheet on post → follower → minter, then a 48-hour test on post format.
 
 ### Presentation (20%)
 - **Live working demo** at sneldao.github.io/glyphgenesis

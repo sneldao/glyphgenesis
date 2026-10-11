@@ -1,4 +1,5 @@
-import { generate, parsePrompt, creativityScore, getRarity, PATTERN_LIST, THEME_LIST, mutateArt } from '@/ascii-generator.mjs';
+import { generate, parsePrompt, creativityScore, getRarity, PATTERN_LIST, THEME_LIST, CHARS, mutateArt } from '@/ascii-generator.mjs';
+import { QUANTUM_FIELDS, renderField, quantumSpec } from '@/quantum-js.mjs';
 import { isConnected, getContract, onWalletEvent } from '@/wallet.js';
 import { EXPLORER_TX, getActiveChain, getActiveChainKey, getCurrencyLabel } from '@/contract.js';
 import { showToast } from './toast.js';
@@ -10,6 +11,7 @@ let animationInterval = null;
 let isAnimating = false;
 let currentArt = '';
 let currentPrompt = 'MONAD';
+let currentQuantumSpec = null;
 
 export function renderGenerator() {
     const section = document.createElement('section');
@@ -17,8 +19,8 @@ export function renderGenerator() {
     section.id = 'generator';
     section.setAttribute('aria-labelledby', 'generator-title');
     section.innerHTML = `
-        <span class="section-label">// 03 — Interactive Generator</span>
-        <h2 class="section-title" id="generator-title">Create <span>ASCII Art</span></h2>
+        <span class="section-label">FILE Nº 03 — Laboratory</span>
+        <h2 class="section-title" id="generator-title">The <span>Laboratory</span></h2>
         <div class="generator-wrap">
             <div class="generator-controls">
                 <div>
@@ -29,11 +31,22 @@ export function renderGenerator() {
                 <div>
                     <label class="field-label" for="genType">Type</label>
                     <select id="genType" aria-label="Generation type">
+                        <option value="quantum">Quantum Field</option>
                         <option value="pattern">Pattern</option>
                         <option value="compose">Compose (Layered)</option>
                         <option value="mutate">Mutate (Evolve)</option>
                         <option value="banner">Banner (Text)</option>
                     </select>
+                </div>
+                <div id="quantumControls" class="quantum-controls">
+                    <label class="field-label" for="quantumMode">Circuit</label>
+                    <select id="quantumMode" aria-label="Quantum circuit mode">
+                        <option value="walk2d">Quantum Walk 2-D — single coin steers both axes</option>
+                        <option value="sweep">Wave Sweep — start position scans across rows</option>
+                        <option value="grid">Interference Lattice — separable walk grid</option>
+                        <option value="entangled">Entangled Pair — two walkers share a Bell state</option>
+                    </select>
+                    <small class="quantum-hint">Measured exactly in-browser via the statevector simulator — no backend needed.</small>
                 </div>
                 <div>
                     <label class="field-label" for="pattern">Pattern</label>
@@ -66,8 +79,9 @@ export function renderGenerator() {
                 <button type="button" class="gen-btn outline" id="randomizeBtn">Randomize</button>
             </div>
             <div class="generator-output">
-                <div class="output-label" aria-hidden="true">ASCII Output</div>
+                <div class="output-label" aria-hidden="true">Measurement Display</div>
                 <div id="output" role="img" aria-label="Generated ASCII art output">Click [ Generate ] to create your masterpiece...</div>
+                <div id="specimenStrip" class="specimen-spec" style="display:none;"></div>
                 <div id="creativityScore" class="creativity-score" style="display:none;"></div>
                 <div class="output-actions">
                     <button type="button" class="btn btn-ghost" id="copyBtn" aria-label="Copy art to clipboard">📋 Copy</button>
@@ -98,8 +112,11 @@ export function renderGenerator() {
     });
 
     section.querySelector('#genType').addEventListener('change', (e) => {
+        const v = e.target.value;
         const patternRow = section.querySelector('#pattern')?.closest('div');
-        if (patternRow) patternRow.style.display = (e.target.value === 'banner') ? 'none' : '';
+        const qControls = section.querySelector('#quantumControls');
+        if (patternRow) patternRow.style.display = (v === 'banner' || v === 'quantum') ? 'none' : '';
+        if (qControls) qControls.style.display = v === 'quantum' ? '' : 'none';
     });
 
     onWalletEvent((event) => {
@@ -109,6 +126,10 @@ export function renderGenerator() {
     });
 
     updateChainControls();
+
+    // 'quantum' is the default type — sync row visibility with the initial select state
+    const patternRow = section.querySelector('#pattern')?.closest('div');
+    if (patternRow) patternRow.style.display = 'none';
 
     return section;
 }
@@ -152,6 +173,9 @@ function generateArt() {
     const detectionMsg = detected.length > 0 ? ` (detected: ${detected.join(', ')})` : '';
 
     try {
+        if (genType === 'quantum') { generateQuantum(parsed, theme, animated, output, detectionMsg); return; }
+        hideSpecimenStrip();
+
         if (animated) {
             const frameCount = 8;
             animationFrames = [];
@@ -195,6 +219,74 @@ function generateArt() {
     }
 }
 
+/* ─── quantum generation ───
+   Real circuit measurement in-browser via src/quantum-js.mjs.
+   Animated = time evolution: frame t measures the circuit after t steps. */
+const QUANTUM_FIELD = QUANTUM_FIELDS;
+
+function generateQuantum(parsed, themeId, animated, output, detectionMsg) {
+    const mode = document.getElementById('quantumMode')?.value || 'walk2d';
+    const fieldFn = QUANTUM_FIELD[mode] || QUANTUM_FIELD.walk2d;
+    const width = parsed.width || 40, height = parsed.height || 15;
+    const seed = parsed.seed ?? (Math.random() * 2 ** 31 | 0);
+    const chars = CHARS[themeId] || CHARS.simple;
+    // steps ≈ a third of the smaller dimension — enough for visible spread
+    const steps = Math.max(3, Math.min(8, Math.round(Math.min(width, height) / 3)));
+
+    const frameTexts = [];
+    const frameSpecs = animated ? [1, 2, 3, 4, 5, 6].filter(t => t <= steps + 2) : [steps];
+    for (const t of frameSpecs) {
+        const { field } = fieldFn({ width, height, steps: t, seed });
+        frameTexts.push(renderField(field, chars));
+    }
+
+    currentQuantumSpec = quantumSpec(mode, { width, height, steps, seed });
+    showSpecimenStrip(currentQuantumSpec, animated ? frameTexts.length : 1);
+
+    if (animated && frameTexts.length > 1) {
+        animationFrames = frameTexts;
+        animationIndex = 0;
+        currentArt = frameTexts[0];
+        animateText(output, currentArt, () => {
+            const controls = document.getElementById('playbackControls');
+            if (controls) controls.style.display = 'flex';
+            const counter = document.getElementById('frameCounter');
+            if (counter) counter.textContent = `Frame: 1/${frameTexts.length} · t=${frameSpecs[0]}`;
+            showToast(`Measured ${mode} circuit — ${frameTexts.length} frames of real time evolution${detectionMsg}`, 'success');
+            updateCreativityScore(currentArt);
+        });
+    } else {
+        animationFrames = [];
+        currentArt = frameTexts[0];
+        animateText(output, currentArt, () => {
+            const controls = document.getElementById('playbackControls');
+            if (controls) controls.style.display = 'none';
+            showToast(`Measured ${mode} circuit · seed ${seed}${detectionMsg}`, 'success');
+            updateCreativityScore(currentArt);
+        });
+    }
+}
+
+function showSpecimenStrip(spec, frameCount) {
+    const el = document.getElementById('specimenStrip');
+    if (!el || !spec) { if (el) el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    el.innerHTML = [
+        `<b>CIRCUIT</b> ${spec.mode}`,
+        `<b>QUBITS</b> ${spec.qubits}`,
+        `<b>STEPS</b> ${spec.steps}${frameCount > 1 ? ` (×${frameCount} frames)` : ''}`,
+        `<b>BACKEND</b> ${spec.backend}`,
+        `<b>SEED</b> ${spec.seed}`,
+        `<span class="specimen-verified">◈ exact statevector</span>`,
+    ].join('');
+}
+
+function hideSpecimenStrip() {
+    currentQuantumSpec = null;
+    const el = document.getElementById('specimenStrip');
+    if (el) el.style.display = 'none';
+}
+
 /**
  * Animate text rendering line-by-line for a terminal feel
  */
@@ -234,6 +326,7 @@ function mutateCurrentArt() {
     const parsed = parsePrompt(currentPrompt);
     try {
         currentArt = mutateArt(currentArt, { mutationRate: 0.15, theme, seed: Date.now() });
+        hideSpecimenStrip(); // a mutated piece is no longer pure circuit output
         const output = document.getElementById('output');
         if (output) animateText(output, currentArt, () => updateCreativityScore(currentArt));
         showToast('Art evolved with subtle mutation!', 'success');
@@ -274,8 +367,18 @@ function randomize() {
     const typeEl = document.getElementById('genType');
     if (patternEl) patternEl.value = PATTERN_LIST[Math.floor(Math.random() * PATTERN_LIST.length)].id;
     if (themeEl) themeEl.value = THEME_LIST[Math.floor(Math.random() * THEME_LIST.length)].id;
-    if (typeEl && Math.random() < 0.2) {
-        typeEl.value = Math.random() < 0.5 ? 'compose' : 'mutate';
+    if (typeEl && Math.random() < 0.35) {
+        const r = Math.random();
+        typeEl.value = r < 0.5 ? 'quantum' : (r < 0.75 ? 'compose' : 'mutate');
+        const qm = document.getElementById('quantumMode');
+        if (typeEl.value === 'quantum' && qm) {
+            const modes = ['walk2d', 'sweep', 'grid', 'entangled'];
+            qm.value = modes[Math.floor(Math.random() * modes.length)];
+        }
+        const patternRow = patternEl?.closest('div');
+        if (patternRow) patternRow.style.display = typeEl.value === 'quantum' ? 'none' : '';
+        const qControls = document.getElementById('quantumControls');
+        if (qControls) qControls.style.display = typeEl.value === 'quantum' ? '' : 'none';
     } else if (typeEl) {
         typeEl.value = 'pattern';
     }
@@ -420,8 +523,12 @@ async function mintArt() {
         if (statusDiv) statusDiv.innerHTML = '<div class="status-message loading"><span class="spinner" aria-hidden="true"></span>Sending transaction to contract...</div>';
         showToast('Initiating mint transaction...', 'info');
 
-        const title = `${prompt} - ${pattern}`;
-        const description = `Generated with ${pattern} pattern`;
+        const title = currentQuantumSpec
+            ? `Quantum ${currentQuantumSpec.mode} · seed ${currentQuantumSpec.seed}`
+            : `${prompt} - ${pattern}`;
+        const description = currentQuantumSpec
+            ? JSON.stringify({ quantum: currentQuantumSpec })
+            : `Generated with ${pattern} pattern`;
         const collectionId = Number(document.getElementById('collectionId')?.value ?? 0);
 
         const tx = getActiveChainKey() === 'bnb'
