@@ -2,6 +2,7 @@
 
 Backends
 --------
+qollab  the `backend` object a Qollab sandbox injects (IonQ sim/hardware)
 exact   built-in statevector (sim.py) — zero dependencies, default
 qiskit  Qiskit Statevector — exact probabilities via Qiskit
 aer     qiskit_aer.AerSimulator — real finite-shot sampling
@@ -15,6 +16,15 @@ art locally before moving to real hardware.
 import importlib
 
 from . import sim
+
+# Set by an embedder (e.g. qollab/main.py) from a sandbox-injected backend.
+_QOLLAB = None
+
+
+def set_qollab_backend(sampler):
+    """Register an external backend object (Qollab/IonQ style)."""
+    global _QOLLAB
+    _QOLLAB = sampler
 
 
 def _to_qiskit(n_qubits, gates):
@@ -42,6 +52,48 @@ def _to_qiskit(n_qubits, gates):
         else:
             raise ValueError(f'unknown gate: {g!r}')
     return qc
+
+
+def _basis_int(key):
+    """Normalise a counts key ('0b101', ' 101 ', hex, int) to int."""
+    if isinstance(key, int):
+        return key
+    k = str(key).strip().replace(' ', '')
+    if k.startswith('0x'):
+        return int(k, 16)
+    return int(k, 2)
+
+
+def _extract_counts(result):
+    """Pull {basis_int: count} out of a Qiskit-style result object."""
+    res = result.result() if hasattr(result, 'result') else result
+    counts = res.get_counts() if hasattr(res, 'get_counts') else None
+    if isinstance(counts, list):
+        counts = counts[0]
+    if counts is None:
+        try:
+            counts = res.results[0].data.counts
+        except Exception as exc:
+            raise RuntimeError(f'could not read counts from backend: {exc}')
+    return {_basis_int(k): v for k, v in dict(counts).items()}
+
+
+def _qollab_counts(n_qubits, gates, shots):
+    """Sample on a registered Qollab backend (IonQ simulator/hardware)."""
+    if _QOLLAB is None:
+        raise RuntimeError('no Qollab backend registered')
+    qc = _to_qiskit(n_qubits, gates)
+    qc.measure_all()
+    try:
+        from qiskit import transpile
+        qc = transpile(qc, backend=_QOLLAB)
+    except Exception:
+        pass  # sandbox may transpile server-side; ship the circuit as-is
+    try:
+        job = _QOLLAB.run(qc, shots=shots)
+    except TypeError:
+        job = _QOLLAB.run(qc)  # some wrappers fix the shot count
+    return _extract_counts(job)
 
 
 def _aer_counts(n_qubits, gates, shots, seed):
@@ -80,6 +132,8 @@ def run_counts(n_qubits, gates, shots, backend='exact', seed=None):
     'aer' uses real simulator sampling; everything else samples the
     exact distribution (seeded, deterministic).
     """
+    if backend == 'qollab' and _QOLLAB is not None:
+        return _qollab_counts(n_qubits, gates, shots)
     if backend == 'aer' and importlib.util.find_spec('qiskit_aer'):
         return _aer_counts(n_qubits, gates, shots, seed)
     if backend == 'ionq':
@@ -93,10 +147,13 @@ def run_counts(n_qubits, gates, shots, backend='exact', seed=None):
 def resolve(requested):
     """Pick the best available backend for a requested one.
 
-    'auto' prefers aer (real sampling) then qiskit then exact.
+    'auto' prefers a registered Qollab backend, then aer (real
+    sampling), then qiskit, then the built-in exact simulator.
     """
     if requested != 'auto':
         return requested
+    if _QOLLAB is not None:
+        return 'qollab'
     if importlib.util.find_spec('qiskit_aer'):
         return 'aer'
     if importlib.util.find_spec('qiskit'):

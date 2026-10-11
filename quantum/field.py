@@ -80,6 +80,8 @@ def sweep_field(width, height, n_pos=6, steps=6,
         field.append(_resample(dist, n_pos, width, lo, hi))
         meta['rows'].append(start)
     meta['measurement'] = how
+    meta['n_qubits'] = n_q
+    meta['gate_count'] = len(gates) * height
     return _normalize(field), meta
 
 
