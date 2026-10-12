@@ -278,7 +278,8 @@ export function subscribeToEvents(eventHandlers) {
                 lastBlock = currentBlock;
             } else if (currentBlock > lastBlock) {
                 const fromBlock = lastBlock + 1;
-                const toBlock = currentBlock;
+                // Monad public RPC caps eth_getLogs at a 100-block range
+                const toBlock = Math.min(currentBlock, fromBlock + 99);
 
                 // Helper to process events for a given filter
                 const processEvents = async (filter, handler, mapper) => {
@@ -322,7 +323,7 @@ export function subscribeToEvents(eventHandlers) {
                     }
                 }
                 
-                lastBlock = currentBlock;
+                lastBlock = toBlock;
             }
         } catch (e) {
             console.debug('Subscription poll failed (RPC noise):', e.message);

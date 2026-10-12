@@ -571,12 +571,142 @@ input:focus-visible, select:focus-visible {
 }
 .fc-key { opacity: .85; }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   THE OBJECT — progressive disclosure tier 1
+   thesis → live demonstration specimen → FIELD / CIRCUIT / VERIFY tabs
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.object-thesis { max-width: 62ch; margin-bottom: 1.6rem; }
+
+.object-panel {
+    border: 1px solid var(--text);
+    background: var(--surface);
+    box-shadow: 5px 5px 0 rgba(23,26,33,.85);
+}
+.object-head {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    padding: .55rem .9rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+}
+.object-tag {
+    font-size: .58rem;
+    font-weight: 700;
+    letter-spacing: .24em;
+    color: var(--spec-teal);
+}
+.object-sub {
+    font-size: .56rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex: 1;
+}
+.object-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+}
+.obj-tab {
+    appearance: none;
+    border: 0;
+    border-right: 1px solid var(--border);
+    background: transparent;
+    font-family: var(--mono);
+    font-size: .6rem;
+    font-weight: 600;
+    letter-spacing: .26em;
+    padding: .55rem 1.2rem;
+    cursor: pointer;
+    color: var(--muted);
+    transition: none;
+}
+.obj-tab:hover { color: var(--text); }
+.obj-tab.active {
+    color: var(--accent);
+    background: var(--surface);
+    box-shadow: inset 0 -2px 0 var(--accent);
+}
+.object-body { background: #14161c; }
+.obj-pane { padding: 1rem; }
+.obj-pane[hidden] { display: none; }
+
+.object-readout {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: rgba(159,232,201,.75);
+    margin-bottom: .7rem;
+    min-height: 1rem;
+}
+.object-readout b { color: #9fe8c9; }
+.object-field {
+    margin: 0;
+    color: #9fe8c9;
+    text-shadow: 0 0 6px rgba(87,232,138,.25);
+    font-family: var(--mono);
+    font-size: .62rem;
+    line-height: 1.2;
+    white-space: pre;
+    overflow: auto;
+    min-height: 24rem;
+}
+.obj-pane .instrument-legend {
+    margin-top: .8rem;
+    border-color: rgba(159,232,201,.25);
+    color: rgba(159,232,201,.6);
+}
+.obj-pane[data-pane="circuit"], .obj-pane[data-pane="verify"] {
+    background: var(--surface);
+}
+.object-note {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .1em;
+    color: var(--muted);
+    margin: .7rem 0 0;
+}
+.obj-pane[data-pane="verify"] .object-note { margin: 0 0 .7rem; }
+
+/* modal provenance tabs — smaller rail */
+.modal-tabs { border: 1px solid var(--border); border-bottom: 0; }
+.modal .obj-pane[data-pane="passport"] .passport { margin: 0; border-top: 0; }
+.modal .obj-pane[data-pane="verify"] { padding: .8rem 0 0; }
+
+/* ─── appendix drawer — contract CRUD demoted to expandable docs ─── */
+.protocol-drawer summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+.protocol-drawer summary::-webkit-details-marker { display: none; }
+.protocol-drawer .drawer-hint {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.protocol-drawer[open] .drawer-hint { color: var(--accent); }
+.protocol-drawer[open] .drawer-hint::after { content: ' · open'; }
+.protocol-drawer summary:hover .section-label { border-color: var(--accent); }
+.protocol-drawer .section-label { margin-bottom: 0; }
+.protocol-drawer[open] .section-title { margin-top: 1.4rem; }
+
 /* ─── responsive ─── */
 @media (max-width: 760px) {
     .verify-cols { grid-template-columns: 1fr; }
     .field-caption { left: .8rem; bottom: 4.6rem; flex-wrap: wrap; gap: .4rem .9rem; }
     .ooda-arrow { display: none; }
     .ooda-stage { min-width: 46%; }
+    .object-field { font-size: .48rem; min-height: 16rem; }
+    .obj-tab { letter-spacing: .16em; padding: .5rem .8rem; }
 }
 
 /* ─── reduced motion ─── */

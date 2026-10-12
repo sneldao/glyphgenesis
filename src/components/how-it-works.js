@@ -11,8 +11,12 @@ export function renderHowItWorks() {
     section.id = 'how-it-works';
     section.setAttribute('aria-labelledby', 'how-it-works-title');
     section.innerHTML = `
-        <span class="section-label">FILE Nº 01 — Protocol</span>
-        <h2 class="section-title" id="how-it-works-title">How Users Interact with the <span>Smart Contract</span></h2>
+        <details class="protocol-drawer">
+            <summary>
+                <span class="section-label">APPENDIX — Contract Interface</span>
+                <span class="drawer-hint">expand ▸</span>
+            </summary>
+            <h2 class="section-title" id="how-it-works-title">How Users Interact with the <span>Smart Contract</span></h2>
         <div class="steps-grid">
             <div class="step-card">
                 <div class="step-num">01</div>
@@ -51,6 +55,7 @@ export function renderHowItWorks() {
                 <div class="step-desc">Buy and sell via <code>setForSale()</code> &amp; <code>buyArtwork()</code> — 2.5% royalty to creators.</div>
             </div>
         </div>
+        </details>
     `;
     return section;
 }

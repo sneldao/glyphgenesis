@@ -3,6 +3,7 @@ import { showToast } from './src/components/toast.js';
 import { renderNav } from './src/components/nav.js';
 import { renderHero } from './src/components/hero.js';
 import { renderStatsBar, fetchTotalArtworks } from './src/components/stats-bar.js';
+import { renderObjectSection } from './src/components/object-section.js';
 import { renderHowItWorks } from './src/components/how-it-works.js';
 import { renderAgentPanel } from './src/components/agent-panel.js';
 import { renderForAgents } from './src/components/for-agents.js';
@@ -25,9 +26,10 @@ async function init() {
     const main = document.createElement('main');
     main.id = 'main';
 
+    // Progressive disclosure: hero → the object (thesis+proof) → lab → archive → agent → appendix
     appendSection(main, renderHero, 'Hero');
     appendSection(main, renderStatsBar, 'Stats');
-    appendSection(main, renderHowItWorks, 'Protocol');
+    appendSection(main, renderObjectSection, 'Object');
     main.appendChild(createDivider());
     const generatorShell = renderLazySection('Generator', 'Interactive art tools load on demand.');
     main.appendChild(generatorShell);
@@ -38,6 +40,8 @@ async function init() {
     appendSection(main, renderAgentPanel, 'Agent panel');
     main.appendChild(createDivider());
     appendSection(main, renderForAgents, 'For agents');
+    main.appendChild(createDivider());
+    appendSection(main, renderHowItWorks, 'Protocol appendix');
     main.appendChild(createDivider());
     appendSection(main, renderOnboarding, 'Onboarding');
 

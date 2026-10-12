@@ -5,9 +5,9 @@ import { showToast } from './toast.js';
 import { artworkCache, statsCache } from './cache.js';
 import { creativityScore, getRarity } from '@/ascii-generator.mjs';
 import { escapeHtml, shortAddress, timeAgo } from '@/utils.js';
-import { QUANTUM_FIELDS, renderField } from '@/quantum-js.mjs';
-import { CHARS } from '@/ascii-generator.mjs';
-import { makeSampler, shotSchedule, fieldCorrelation, circuitSvg, legendHtml } from '@/quantum-measure.mjs';
+import { QUANTUM_FIELDS } from '@/quantum-js.mjs';
+import { circuitSvg } from '@/quantum-measure.mjs';
+import { mountVerify } from './verify-mount.js';
 
 const QUANTUM_FIELD = QUANTUM_FIELDS;
 
@@ -24,6 +24,37 @@ function parseQuantumSpec(prompt) {
         const [w, h] = String(q.size || `${q.width || 40}x${q.height || 15}`).split('x').map(Number);
         return { ...q, width: w || 40, height: h || 15, steps: q.steps ?? 4 };
     } catch { return null; }
+}
+
+/** Strip the ┌─┐│└─┘ frame if present + trailing space, for verification compare. */
+function unframeContent(content) {
+    let lines = content.split('\n');
+    const framed = /^┌─+┐$/.test(lines[0] || '') && /^└─+┘$/.test(lines[lines.length - 1] || '');
+    if (framed) lines = lines.slice(1, -1).map(l => l.replace(/^│/, '').replace(/│$/, ''));
+    return lines.join('\n').replace(/[ \t]+$/gm, '');
+}
+
+/** Deep link — open a specimen modal from #piece-N (Art Blocks-style token URLs). */
+export async function openPieceFromHash() {
+    const m = location.hash.match(/^#piece-(\d+)$/);
+    if (!m || document.querySelector('.modal-overlay')) return;
+    const id = Number(m[1]);
+    try {
+        let art = allArtworks.find(a => a.id === id);
+        if (!art) {
+            const contract = getReadContract();
+            const raw = await contract.getArtwork(id);
+            const [creator, owner, content, title, prompt, timestamp, price, forSale, likes] = raw;
+            art = {
+                id, creator, owner, content, title, prompt,
+                timestamp: Number(timestamp), price, forSale,
+                likes: Number(likes),
+                isAgent: creator.toLowerCase() === AGENT_ADDRESS?.toLowerCase(),
+                rarity: creativityScore(content),
+            };
+        }
+        showArtModal(art);
+    } catch { /* id out of range or RPC down — ignore */ }
 }
 
 function specimenStripHtml(q) {
@@ -128,6 +159,8 @@ export function renderGallery() {
             loadGallery();
         }
     });
+
+    window.addEventListener('hashchange', () => { void openPieceFromHash(); });
 
     // Subscribe to live events using the imported function from contract.js
     try {
@@ -258,6 +291,7 @@ export async function loadGallery() {
         loadedCount = allArtworks.length;
         renderFeaturedArt(allArtworks);
         renderFilteredArtworks();
+        openPieceFromHash();
     } catch (error) {
         console.error('Gallery load failed:', error);
         container.innerHTML = `
@@ -487,30 +521,26 @@ export function showArtModal(art) {
             </div>
             <pre>${escapeHtml(art.content)}</pre>
             ${quantum ? `
-            <div class="passport">
-                <div class="passport-head">SPECIMEN PASSPORT — the circuit is the certificate</div>
-                <div class="passport-circuit">${circuitSvg(quantum)}</div>
-                <div class="specimen-spec">
-                    <b>CIRCUIT</b> ${escapeHtml(quantum.mode)}
-                    <b>STEPS</b> ${quantum.steps}
-                    ${quantum.shots ? `<b>SHOTS</b> ${quantum.shots}` : ''}
-                    <b>BACKEND</b> ${escapeHtml(quantum.backend || 'js-statevector')}
-                    <b>SEED</b> ${quantum.seed ?? '—'}
-                    <button class="btn btn-ghost btn-sm" data-action="verify" style="margin-left:auto">⟲ Verify — re-measure the circuit</button>
+            <div class="object-tabs modal-tabs" role="tablist" aria-label="Provenance views">
+                <button class="obj-tab active" role="tab" aria-selected="true" data-pane="passport">PASSPORT</button>
+                <button class="obj-tab" role="tab" aria-selected="false" data-pane="verify">VERIFY</button>
+            </div>
+            <div class="obj-pane" data-pane="passport">
+                <div class="passport">
+                    <div class="passport-head">SPECIMEN PASSPORT — the circuit is the certificate</div>
+                    <div class="passport-circuit">${circuitSvg(quantum)}</div>
+                    <div class="specimen-spec">
+                        <b>CIRCUIT</b> ${escapeHtml(quantum.mode)}
+                        <b>STEPS</b> ${quantum.steps}
+                        ${quantum.shots ? `<b>SHOTS</b> ${quantum.shots}` : ''}
+                        <b>BACKEND</b> ${escapeHtml(quantum.backend || 'js-statevector')}
+                        <b>SEED</b> ${quantum.seed ?? '—'}
+                    </div>
                 </div>
             </div>
-            <div class="verify-panel" style="display:none" aria-label="Specimen verification">
-                <div class="verify-cols">
-                    <div class="verify-col">
-                        <div class="verify-col-label">STORED ON-CHAIN</div>
-                        <pre class="verify-stored"></pre>
-                    </div>
-                    <div class="verify-col">
-                        <div class="verify-col-label" id="verifyLiveLabel">RE-MEASURING…</div>
-                        <pre class="verify-live"></pre>
-                    </div>
-                </div>
-                <div class="verify-verdict" style="display:none"></div>
+            <div class="obj-pane" data-pane="verify" hidden>
+                <div class="object-note">the same circuit, re-measured live in your browser against the field stored in this token</div>
+                <div class="verify-panel" aria-label="Specimen verification"></div>
             </div>` : ''}
             <div class=\"modal-meta\">
                 <div class=\"modal-chips\">
@@ -536,7 +566,11 @@ export function showArtModal(art) {
         document.body.style.overflow = bodyOverflow;
         overlay.remove();
         previouslyFocused?.focus?.();
+        if (location.hash === `#piece-${art.id}`) history.replaceState(null, '', location.pathname + location.search);
     };
+
+    // shareable specimen URL — #piece-N resolves back to this modal
+    if (art.id != null) history.replaceState(null, '', `#piece-${art.id}`);
 
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
     overlay.querySelector('.modal-close').addEventListener('click', closeModal);
@@ -566,72 +600,28 @@ export function showArtModal(art) {
     document.addEventListener('keydown', escHandler);
     setTimeout(() => overlay.querySelector('.modal-close')?.focus(), 50);
 
-    overlay.querySelector('[data-action=\"verify\"]')?.addEventListener('click', () => {
-        const panel = overlay.querySelector('.verify-panel');
-        const storedPre = overlay.querySelector('.verify-stored');
-        const livePre = overlay.querySelector('.verify-live');
-        const liveLabel = overlay.querySelector('#verifyLiveLabel');
-        const verdict = overlay.querySelector('.verify-verdict');
-        const fn = QUANTUM_FIELD[quantum.mode];
-        if (!panel || !fn) return;
-        try {
-            const chars = CHARS[quantum.theme] || CHARS.simple;
-            const shots = quantum.shots || 4096;
-            // strip the ┌─┐│└─┘ frame if present, then trailing space
-            // ([ \t] not \s — \s would eat the newlines and merge blank rows)
-            let storedLines = art.content.split('\n');
-            const framed = /^┌─+┐$/.test(storedLines[0] || '') && /^└─+┘$/.test(storedLines[storedLines.length - 1] || '');
-            if (framed) storedLines = storedLines.slice(1, -1).map(l => l.replace(/^│/, '').replace(/│$/, ''));
-            const stored = storedLines.join('\n').replace(/[ \t]+$/gm, '');
-
-            const { field } = fn({ width: quantum.width, height: quantum.height, steps: quantum.steps, seed: quantum.seed });
-            const sampler = makeSampler(field, quantum.seed ?? 1);
-            const schedule = shotSchedule(shots, 30);
-
-            storedPre.textContent = stored;
-            livePre.textContent = '';
-            verdict.style.display = 'none';
-            panel.style.display = 'block';
-            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-            let prev = 0, i = 0, replayText = '';
-            const timer = setInterval(() => {
-                sampler.draw(schedule[i] - prev);
-                prev = schedule[i];
-                replayText = renderField(sampler.field(), chars);
-                livePre.textContent = replayText;
-                liveLabel.innerHTML = prev < shots
-                    ? `RE-MEASURING — shots <b>${prev}</b>/${shots}`
-                    : `RE-MEASURED — ${shots} shots · seed ${quantum.seed ?? '—'}`;
-                if (++i < schedule.length) return;
-                clearInterval(timer);
-
-                // verdict — the provenance claim, demonstrated
-                const replayTrimmed = replayText.replace(/[ \t]+$/gm, '');
-                const rho = fieldCorrelation(stored, replayTrimmed, chars);
-                const identical = stored === replayTrimmed;
-                let cls, msg;
-                if (identical) {
-                    cls = 'ok';
-                    msg = `✓ EXACT REPLAY — this mint reproduces bit-for-bit from its circuit spec`;
-                } else if (rho >= 0.9) {
-                    cls = 'ok';
-                    msg = `✓ VERIFIED — ρ=${rho.toFixed(2)} · consistent with a ${shots}-shot measurement (shot noise expected)`;
-                } else if (rho >= 0.55) {
-                    cls = 'warn';
-                    msg = `≈ PARTIAL — ρ=${rho.toFixed(2)} · field is related but diverges (different sampler or post-mint edit)`;
-                } else {
-                    cls = 'bad';
-                    msg = `⚠ DIVERGENT — ρ=${rho.toFixed(2)} · stored field does not match this spec`;
+    // tabbed provenance — PASSPORT default; VERIFY mounts the re-measurement lazily
+    if (quantum) {
+        let verifyMounted = false;
+        overlay.querySelectorAll('.obj-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                overlay.querySelectorAll('.obj-tab').forEach(t => {
+                    t.classList.toggle('active', t === tab);
+                    t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+                });
+                overlay.querySelectorAll('.obj-pane').forEach(p => {
+                    p.hidden = p.dataset.pane !== tab.dataset.pane;
+                });
+                if (tab.dataset.pane === 'verify' && !verifyMounted) {
+                    verifyMounted = true;
+                    mountVerify(overlay.querySelector('.verify-panel'), {
+                        storedText: unframeContent(art.content),
+                        quantum,
+                    });
                 }
-                verdict.style.display = 'block';
-                verdict.className = `verify-verdict ${cls}`;
-                verdict.innerHTML = msg;
-            }, 70);
-        } catch (err) {
-            showToast(`Verification failed: ${err.message}`, 'error');
-        }
-    });
+            });
+        });
+    }
 
     overlay.querySelector('[data-action=\"copy\"]')?.addEventListener('click', () => {
         navigator.clipboard.writeText(art.content)
