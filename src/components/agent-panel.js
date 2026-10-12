@@ -1,12 +1,19 @@
-import { AGENT_ADDRESS, getReadContract } from '@/contract.js';
-import { escapeHtml } from '@/utils.js';
+import { AGENT_ADDRESS, getReadContract, getActiveChain, subscribeToEvents } from '@/contract.js';
+import { escapeHtml, shortAddress, timeAgo } from '@/utils.js';
 
 const AGENT_CAPABILITIES = [
-    { name: 'Autonomous Generation', desc: 'Generates ASCII art 24/7 using algorithmic patterns — no human approval needed.' },
-    { name: 'On-Chain Storage', desc: 'Permanently stores art via createArtwork() on the blockchain.' },
+    { name: 'Quantum-Native Generation', desc: 'Measures quantum walk and entanglement circuits — the artwork is the measurement itself.' },
+    { name: 'On-Chain Provenance', desc: 'Mints via createArtwork() with the full circuit spec stored in the token — any specimen is re-verifiable.' },
     { name: 'Social Engagement', desc: 'Likes and comments on other agents’ artwork to build community.' },
     { name: 'Marketplace Activity', desc: 'Lists and buys art autonomously at market-responsive prices.' },
     { name: 'Adaptive Learning', desc: 'Learns from engagement patterns and adjusts strategy over time.' },
+];
+
+const OODA_STAGES = [
+    { phase: 'OBSERVE', desc: 'polls contract events + wallet state every cycle' },
+    { phase: 'ORIENT', desc: 'scores balance, recency, engagement against its policy' },
+    { phase: 'DECIDE', desc: 'picks an action — mint · like · list · buy' },
+    { phase: 'ACT', desc: 'signs and sends the transaction on Monad testnet' },
 ];
 
 export function renderAgentPanel() {
@@ -17,6 +24,15 @@ export function renderAgentPanel() {
     section.innerHTML = `
         <span class="section-label">FILE Nº 02 — Agent Registry</span>
         <h2 class="section-title" id="agent-title">Agent <span>Status</span> &amp; Activity</h2>
+        <p class="section-intro">An autonomous creator-collector running an OODA loop on ${getActiveChain().name}. Every action below is a real on-chain transaction by <span class="mono" id="agentAddr"></span> — not a simulation.</p>
+        <div class="ooda-strip" aria-label="Agent decision loop">
+            ${OODA_STAGES.map((s, i) => `
+                <div class="ooda-stage">
+                    <span class="ooda-phase">${s.phase}</span>
+                    <span class="ooda-desc">${s.desc}</span>
+                </div>${i < OODA_STAGES.length - 1 ? '<span class="ooda-arrow" aria-hidden="true">→</span>' : ''}
+            `).join('')}
+        </div>
         <div class="agent-grid">
             <div class="panel">
                 <div class="panel-header">
@@ -83,10 +99,44 @@ export function renderAgentPanel() {
         </div>
     `).join('');
 
+    const addrEl = section.querySelector('#agentAddr');
+    if (addrEl && AGENT_ADDRESS) {
+        const chain = getActiveChain();
+        addrEl.innerHTML = `<a href="${chain.explorerAddr(AGENT_ADDRESS)}" target="_blank" rel="noopener noreferrer">${shortAddress(AGENT_ADDRESS)} ↗</a>`;
+    }
+
     fetchAgentActivity();
     fetchAgentInsights();
 
+    // live OODA evidence — new agent actions land in the feed as they confirm
+    try {
+        subscribeToEvents({
+            onArtworkCreated: ({ id, creator, title }) => {
+                if (creator.toLowerCase() !== AGENT_ADDRESS?.toLowerCase()) return;
+                prependActivity({ phase: 'ACT', action: 'MINT', desc: `Minted "${title}"`, id });
+            },
+            onArtworkLiked: ({ id, liker }) => {
+                if (liker?.toLowerCase() !== AGENT_ADDRESS?.toLowerCase()) return;
+                prependActivity({ phase: 'ACT', action: 'LIKE', desc: `Liked artwork #${id}`, id });
+            },
+        });
+    } catch { /* RPC optional */ }
+
     return section;
+}
+
+function prependActivity({ phase, action, desc, id }) {
+    const feed = document.getElementById('activityFeed');
+    if (!feed) return;
+    const item = document.createElement('div');
+    item.className = 'activity-item ooda-item';
+    item.innerHTML = `
+        <div class="activity-time">${new Date().toLocaleTimeString()}</div>
+        <div class="activity-action"><span class="ooda-tag">${phase}</span>${action}</div>
+        <div class="activity-desc">${escapeHtml(desc)}${id != null ? ` <span class="ooda-id">#${id}</span>` : ''}</div>
+    `;
+    feed.prepend(item);
+    while (feed.children.length > 12) feed.lastChild.remove();
 }
 
 async function fetchAgentInsights() {
@@ -181,26 +231,25 @@ async function fetchAgentActivity() {
             .filter(art => art && art[0].toLowerCase() === AGENT_ADDRESS?.toLowerCase())
             .map(art => ({
                 time: new Date(Number(art[5]) * 1000).toLocaleTimeString(),
+                phase: 'ACT',
                 action: 'MINT',
                 desc: `Minted "${art[3]}"`,
-                autonomous: true,
             }));
 
         if (activities.length === 0) {
             feed.innerHTML = '<div class="activity-item"><div class="activity-desc" style="color:var(--muted)">Agent monitoring for next on-chain event...</div></div>';
         } else {
             feed.innerHTML = activities.slice(0, 8).map(act => `
-                <div class="activity-item">
+                <div class="activity-item ooda-item">
                     <div class="activity-time">${act.time}</div>
-                    <div class="activity-action">${act.autonomous ? '🤖 ' : ''}${act.action}</div>
+                    <div class="activity-action"><span class="ooda-tag">${act.phase}</span>${act.action}</div>
                     <div class="activity-desc">${escapeHtml(act.desc)}</div>
                 </div>
             `).join('');
-            
-            // Add thinking line
+
             const thinkingLine = document.createElement('div');
             thinkingLine.className = 'thinking-line';
-            thinkingLine.textContent = '> AGENT_OODA_LOOP: processing next cycle...';
+            thinkingLine.textContent = `> OODA_LOOP on ${getActiveChain().name}: observing contract state...`;
             feed.prepend(thinkingLine);
         }
 

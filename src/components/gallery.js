@@ -7,6 +7,7 @@ import { creativityScore, getRarity } from '@/ascii-generator.mjs';
 import { escapeHtml, shortAddress, timeAgo } from '@/utils.js';
 import { QUANTUM_FIELDS, renderField } from '@/quantum-js.mjs';
 import { CHARS } from '@/ascii-generator.mjs';
+import { makeSampler, shotSchedule, fieldCorrelation, circuitSvg, legendHtml } from '@/quantum-measure.mjs';
 
 const QUANTUM_FIELD = QUANTUM_FIELDS;
 
@@ -457,7 +458,7 @@ async function loadMore() {
     }
 }
 
-function showArtModal(art) {
+export function showArtModal(art) {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const bodyOverflow = document.body.style.overflow;
     const overlay = document.createElement('div');
@@ -486,15 +487,31 @@ function showArtModal(art) {
             </div>
             <pre>${escapeHtml(art.content)}</pre>
             ${quantum ? `
-            <div class="specimen-spec" style="margin:0 0 .8rem">
-                <b>CIRCUIT</b> ${escapeHtml(quantum.mode)}
-                <b>STEPS</b> ${quantum.steps}
-                ${quantum.shots ? `<b>SHOTS</b> ${quantum.shots}` : ''}
-                <b>BACKEND</b> ${escapeHtml(quantum.backend || 'js-statevector')}
-                <b>SEED</b> ${quantum.seed ?? '—'}
-                <button class="btn btn-ghost btn-sm" data-action="replay" style="margin-left:auto">⟲ Re-run circuit</button>
+            <div class="passport">
+                <div class="passport-head">SPECIMEN PASSPORT — the circuit is the certificate</div>
+                <div class="passport-circuit">${circuitSvg(quantum)}</div>
+                <div class="specimen-spec">
+                    <b>CIRCUIT</b> ${escapeHtml(quantum.mode)}
+                    <b>STEPS</b> ${quantum.steps}
+                    ${quantum.shots ? `<b>SHOTS</b> ${quantum.shots}` : ''}
+                    <b>BACKEND</b> ${escapeHtml(quantum.backend || 'js-statevector')}
+                    <b>SEED</b> ${quantum.seed ?? '—'}
+                    <button class="btn btn-ghost btn-sm" data-action="verify" style="margin-left:auto">⟲ Verify — re-measure the circuit</button>
+                </div>
             </div>
-            <pre class="quantum-replay" style="display:none" aria-label="Re-generated quantum field"></pre>` : ''}
+            <div class="verify-panel" style="display:none" aria-label="Specimen verification">
+                <div class="verify-cols">
+                    <div class="verify-col">
+                        <div class="verify-col-label">STORED ON-CHAIN</div>
+                        <pre class="verify-stored"></pre>
+                    </div>
+                    <div class="verify-col">
+                        <div class="verify-col-label" id="verifyLiveLabel">RE-MEASURING…</div>
+                        <pre class="verify-live"></pre>
+                    </div>
+                </div>
+                <div class="verify-verdict" style="display:none"></div>
+            </div>` : ''}
             <div class=\"modal-meta\">
                 <div class=\"modal-chips\">
                     <span>ID: #${art.id}</span>
@@ -549,23 +566,70 @@ function showArtModal(art) {
     document.addEventListener('keydown', escHandler);
     setTimeout(() => overlay.querySelector('.modal-close')?.focus(), 50);
 
-    overlay.querySelector('[data-action=\"replay\"]')?.addEventListener('click', () => {
-        const out = overlay.querySelector('.quantum-replay');
+    overlay.querySelector('[data-action=\"verify\"]')?.addEventListener('click', () => {
+        const panel = overlay.querySelector('.verify-panel');
+        const storedPre = overlay.querySelector('.verify-stored');
+        const livePre = overlay.querySelector('.verify-live');
+        const liveLabel = overlay.querySelector('#verifyLiveLabel');
+        const verdict = overlay.querySelector('.verify-verdict');
         const fn = QUANTUM_FIELD[quantum.mode];
-        if (!out || !fn) return;
+        if (!panel || !fn) return;
         try {
-            const { field } = fn({ width: quantum.width, height: quantum.height, steps: quantum.steps, seed: quantum.seed });
             const chars = CHARS[quantum.theme] || CHARS.simple;
-            const regenerated = renderField(field, chars);
-            // compare against stored art (strip frame lines if present)
-            const stored = art.content.split('\n').filter(l => !/^[┌└│┐┘─]/.test(l)).map(l => l.replace(/[│]/g, '')).join('\n').replace(/\s+$/gm, '');
-            const replay = regenerated.replace(/\s+$/gm, '');
-            out.style.display = 'block';
-            out.textContent = regenerated + '\n\n— re-measured in-browser (exact statevector) —';
-            const match = stored.includes(replay.slice(0, 200)) || replay === stored;
-            showToast(match ? '✓ Replay matches stored specimen' : 'Field re-generated — shot noise may differ on hardware backends', match ? 'success' : 'info');
+            const shots = quantum.shots || 4096;
+            // strip the ┌─┐│└─┘ frame if present, then trailing space
+            // ([ \t] not \s — \s would eat the newlines and merge blank rows)
+            let storedLines = art.content.split('\n');
+            const framed = /^┌─+┐$/.test(storedLines[0] || '') && /^└─+┘$/.test(storedLines[storedLines.length - 1] || '');
+            if (framed) storedLines = storedLines.slice(1, -1).map(l => l.replace(/^│/, '').replace(/│$/, ''));
+            const stored = storedLines.join('\n').replace(/[ \t]+$/gm, '');
+
+            const { field } = fn({ width: quantum.width, height: quantum.height, steps: quantum.steps, seed: quantum.seed });
+            const sampler = makeSampler(field, quantum.seed ?? 1);
+            const schedule = shotSchedule(shots, 30);
+
+            storedPre.textContent = stored;
+            livePre.textContent = '';
+            verdict.style.display = 'none';
+            panel.style.display = 'block';
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            let prev = 0, i = 0, replayText = '';
+            const timer = setInterval(() => {
+                sampler.draw(schedule[i] - prev);
+                prev = schedule[i];
+                replayText = renderField(sampler.field(), chars);
+                livePre.textContent = replayText;
+                liveLabel.innerHTML = prev < shots
+                    ? `RE-MEASURING — shots <b>${prev}</b>/${shots}`
+                    : `RE-MEASURED — ${shots} shots · seed ${quantum.seed ?? '—'}`;
+                if (++i < schedule.length) return;
+                clearInterval(timer);
+
+                // verdict — the provenance claim, demonstrated
+                const replayTrimmed = replayText.replace(/[ \t]+$/gm, '');
+                const rho = fieldCorrelation(stored, replayTrimmed, chars);
+                const identical = stored === replayTrimmed;
+                let cls, msg;
+                if (identical) {
+                    cls = 'ok';
+                    msg = `✓ EXACT REPLAY — this mint reproduces bit-for-bit from its circuit spec`;
+                } else if (rho >= 0.9) {
+                    cls = 'ok';
+                    msg = `✓ VERIFIED — ρ=${rho.toFixed(2)} · consistent with a ${shots}-shot measurement (shot noise expected)`;
+                } else if (rho >= 0.55) {
+                    cls = 'warn';
+                    msg = `≈ PARTIAL — ρ=${rho.toFixed(2)} · field is related but diverges (different sampler or post-mint edit)`;
+                } else {
+                    cls = 'bad';
+                    msg = `⚠ DIVERGENT — ρ=${rho.toFixed(2)} · stored field does not match this spec`;
+                }
+                verdict.style.display = 'block';
+                verdict.className = `verify-verdict ${cls}`;
+                verdict.innerHTML = msg;
+            }, 70);
         } catch (err) {
-            showToast(`Replay failed: ${err.message}`, 'error');
+            showToast(`Verification failed: ${err.message}`, 'error');
         }
     });
 

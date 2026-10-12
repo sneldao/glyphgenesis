@@ -1,5 +1,6 @@
 import { generate, parsePrompt, creativityScore, getRarity, PATTERN_LIST, THEME_LIST, CHARS, mutateArt } from '@/ascii-generator.mjs';
 import { QUANTUM_FIELDS, renderField, quantumSpec } from '@/quantum-js.mjs';
+import { makeSampler, shotSchedule, renderFieldHtml, legendHtml, sigmaX } from '@/quantum-measure.mjs';
 import { isConnected, getContract, onWalletEvent } from '@/wallet.js';
 import { EXPLORER_TX, getActiveChain, getActiveChainKey, getCurrencyLabel } from '@/contract.js';
 import { showToast } from './toast.js';
@@ -46,7 +47,7 @@ export function renderGenerator() {
                         <option value="grid">Interference Lattice — separable walk grid</option>
                         <option value="entangled">Entangled Pair — two walkers share a Bell state</option>
                     </select>
-                    <small class="quantum-hint">Measured exactly in-browser via the statevector simulator — no backend needed.</small>
+                    <small class="quantum-hint">The artwork is the measurement — watch shots accumulate into the field. Hue encodes amplitude phase, glyph weight encodes probability.</small>
                 </div>
                 <div>
                     <label class="field-label" for="pattern">Pattern</label>
@@ -80,8 +81,10 @@ export function renderGenerator() {
             </div>
             <div class="generator-output">
                 <div class="output-label" aria-hidden="true">Measurement Display</div>
+                <div id="measureReadout" class="measure-readout" style="display:none;" role="status" aria-live="polite"></div>
                 <div id="output" role="img" aria-label="Generated ASCII art output">Click [ Generate ] to create your masterpiece...</div>
                 <div id="specimenStrip" class="specimen-spec" style="display:none;"></div>
+                <div id="instrumentLegend" style="display:none;"></div>
                 <div id="creativityScore" class="creativity-score" style="display:none;"></div>
                 <div class="output-actions">
                     <button type="button" class="btn btn-ghost" id="copyBtn" aria-label="Copy art to clipboard">📋 Copy</button>
@@ -158,6 +161,7 @@ function generateArt() {
 
     currentPrompt = promptInput;
     pauseAnimation();
+    stopMeasure();
 
     const parsed = parsePrompt(promptInput);
     const pattern = parsed.pattern || patternSelect;
@@ -224,6 +228,15 @@ function generateArt() {
    Animated = time evolution: frame t measures the circuit after t steps. */
 const QUANTUM_FIELD = QUANTUM_FIELDS;
 
+let measureTimer = null;
+const TOTAL_SHOTS = 4096;
+
+function stopMeasure() {
+    if (measureTimer) { clearInterval(measureTimer); measureTimer = null; }
+    const ro = document.getElementById('measureReadout');
+    if (ro) ro.style.display = 'none';
+}
+
 function generateQuantum(parsed, themeId, animated, output, detectionMsg) {
     const mode = document.getElementById('quantumMode')?.value || 'walk2d';
     const fieldFn = QUANTUM_FIELD[mode] || QUANTUM_FIELD.walk2d;
@@ -233,38 +246,98 @@ function generateQuantum(parsed, themeId, animated, output, detectionMsg) {
     // steps ≈ a third of the smaller dimension — enough for visible spread
     const steps = Math.max(3, Math.min(8, Math.round(Math.min(width, height) / 3)));
 
-    const frameTexts = [];
-    const frameSpecs = animated ? [1, 2, 3, 4, 5, 6].filter(t => t <= steps + 2) : [steps];
+    const { field: exactField, phase } = fieldFn({ width, height, steps, seed, phase: true });
+    const sigma = sigmaX(exactField);
+    stopMeasure();
+
+    if (animated) { runEvolution(fieldFn, mode, { width, height, steps, seed, chars, output, detectionMsg, phase }); return; }
+    runMeasurement(exactField, phase, { mode, width, height, steps, seed, chars, output, sigma, detectionMsg });
+}
+
+/* The artwork is the measurement: shots accumulate from a seeded sampler
+   over the circuit's distribution — noise resolves into structure, then
+   amplitude phase resolves into hue. Replayable: same seed, same shots. */
+function runMeasurement(exactField, phase, { mode, width, height, steps, seed, chars, output, sigma, detectionMsg }) {
+    const readout = document.getElementById('measureReadout');
+    const sampler = makeSampler(exactField, seed);
+    const schedule = shotSchedule(TOTAL_SHOTS, 44);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let prev = 0, i = 0;
+
+    const paint = (shotsSoFar) => {
+        const f = sampler.field();
+        output.textContent = renderField(f, chars);
+        if (readout) {
+            readout.style.display = 'block';
+            readout.innerHTML = shotsSoFar < TOTAL_SHOTS
+                ? `◉ measuring — shots <b>${shotsSoFar}</b>/${TOTAL_SHOTS} · σ<sub>x</sub> ${sigmaX(f).toFixed(2)}`
+                : `◈ measured — shots <b>${TOTAL_SHOTS}</b> · σ<sub>x</sub> ${sigma.toFixed(2)} (exact ${sigma.toFixed(2)})`;
+        }
+    };
+
+    const finish = () => {
+        stopMeasure();
+        if (readout) readout.style.display = 'block';
+        const measured = sampler.field();
+        currentArt = renderField(measured, chars);
+        // phase is a statevector quantity — it resolves over the measured weights
+        output.innerHTML = phase ? renderFieldHtml(measured, chars, phase) : currentArt;
+        if (readout) readout.innerHTML = `◈ measured — shots <b>${TOTAL_SHOTS}</b> · seed ${seed} · σ<sub>x</sub> ${sigmaX(measured).toFixed(2)} (exact ${sigma.toFixed(2)})`;
+        currentQuantumSpec = { ...quantumSpec(mode, { width, height, steps, seed, shots: TOTAL_SHOTS }), measurement: 'shots' };
+        showSpecimenStrip(currentQuantumSpec, 1);
+        showInstrumentLegend(!!phase);
+        showToast(`Measured ${mode} circuit — ${TOTAL_SHOTS} shots · shot noise is the signature${detectionMsg}`, 'success');
+        updateCreativityScore(currentArt);
+    };
+
+    animationFrames = [];
+    output.textContent = '';
+    if (reduced) { sampler.draw(TOTAL_SHOTS); finish(); return; }
+
+    measureTimer = setInterval(() => {
+        sampler.draw(schedule[i] - prev);
+        prev = schedule[i];
+        paint(prev);
+        if (++i >= schedule.length) finish();
+    }, 55);
+}
+
+/* Time evolution — frame t is the same circuit measured after t steps. */
+function runEvolution(fieldFn, mode, { width, height, steps, seed, chars, output, detectionMsg }) {
+    const frameSpecs = [1, 2, 3, 4, 5, 6].filter(t => t <= steps + 2);
+    animationFrames = [];
+    const htmlFrames = [];
+    let hasPhase = false;
     for (const t of frameSpecs) {
-        const { field } = fieldFn({ width, height, steps: t, seed });
-        frameTexts.push(renderField(field, chars));
+        const { field, phase } = fieldFn({ width, height, steps: t, seed, phase: true });
+        animationFrames.push(renderField(field, chars));
+        if (phase) { hasPhase = true; htmlFrames.push(renderFieldHtml(field, chars, phase)); }
+        else htmlFrames.push(null);
     }
 
-    currentQuantumSpec = quantumSpec(mode, { width, height, steps, seed });
-    showSpecimenStrip(currentQuantumSpec, animated ? frameTexts.length : 1);
+    animationIndex = 0;
+    currentArt = animationFrames[0];
+    animateText(output, currentArt, () => {
+        const controls = document.getElementById('playbackControls');
+        if (controls) controls.style.display = 'flex';
+        const counter = document.getElementById('frameCounter');
+        if (counter) counter.textContent = `Frame: 1/${animationFrames.length} · t=${frameSpecs[0]}`;
+        showToast(`Measured ${mode} circuit — ${animationFrames.length} frames of real time evolution${detectionMsg}`, 'success');
+        updateCreativityScore(currentArt);
+        // swap in the phase-hue render once the reveal settles
+        if (hasPhase && htmlFrames[0]) output.innerHTML = htmlFrames[0];
+    });
+    animationFrames._html = htmlFrames;
+    currentQuantumSpec = { ...quantumSpec(mode, { width, height, steps, seed }), measurement: 'exact' };
+    showSpecimenStrip(currentQuantumSpec, animationFrames.length);
+    showInstrumentLegend(hasPhase);
+}
 
-    if (animated && frameTexts.length > 1) {
-        animationFrames = frameTexts;
-        animationIndex = 0;
-        currentArt = frameTexts[0];
-        animateText(output, currentArt, () => {
-            const controls = document.getElementById('playbackControls');
-            if (controls) controls.style.display = 'flex';
-            const counter = document.getElementById('frameCounter');
-            if (counter) counter.textContent = `Frame: 1/${frameTexts.length} · t=${frameSpecs[0]}`;
-            showToast(`Measured ${mode} circuit — ${frameTexts.length} frames of real time evolution${detectionMsg}`, 'success');
-            updateCreativityScore(currentArt);
-        });
-    } else {
-        animationFrames = [];
-        currentArt = frameTexts[0];
-        animateText(output, currentArt, () => {
-            const controls = document.getElementById('playbackControls');
-            if (controls) controls.style.display = 'none';
-            showToast(`Measured ${mode} circuit · seed ${seed}${detectionMsg}`, 'success');
-            updateCreativityScore(currentArt);
-        });
-    }
+function showInstrumentLegend(hasPhase) {
+    const el = document.getElementById('instrumentLegend');
+    if (!el) return;
+    el.style.display = 'block';
+    el.innerHTML = legendHtml({ phase: hasPhase, shots: currentQuantumSpec?.shots });
 }
 
 function showSpecimenStrip(spec, frameCount) {
@@ -275,16 +348,20 @@ function showSpecimenStrip(spec, frameCount) {
         `<b>CIRCUIT</b> ${spec.mode}`,
         `<b>QUBITS</b> ${spec.qubits}`,
         `<b>STEPS</b> ${spec.steps}${frameCount > 1 ? ` (×${frameCount} frames)` : ''}`,
+        spec.shots ? `<b>SHOTS</b> ${spec.shots}` : '',
         `<b>BACKEND</b> ${spec.backend}`,
         `<b>SEED</b> ${spec.seed}`,
-        `<span class="specimen-verified">◈ exact statevector</span>`,
-    ].join('');
+        `<span class="specimen-verified">◈ ${spec.measurement === 'shots' ? 'finite-shot measurement' : 'exact statevector'}</span>`,
+    ].filter(Boolean).join('');
 }
 
 function hideSpecimenStrip() {
     currentQuantumSpec = null;
+    stopMeasure();
     const el = document.getElementById('specimenStrip');
     if (el) el.style.display = 'none';
+    const legend = document.getElementById('instrumentLegend');
+    if (legend) legend.style.display = 'none';
 }
 
 /**
@@ -393,7 +470,11 @@ function playAnimation() {
         animationIndex = (animationIndex + 1) % animationFrames.length;
         currentArt = animationFrames[animationIndex];
         const output = document.getElementById('output');
-        if (output) output.textContent = currentArt;
+        if (output) {
+            const html = animationFrames._html?.[animationIndex];
+            if (html) output.innerHTML = html;
+            else output.textContent = currentArt;
+        }
         const counter = document.getElementById('frameCounter');
         if (counter) counter.textContent = `Frame: ${animationIndex + 1}/${animationFrames.length}`;
     }, 200);

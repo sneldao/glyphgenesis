@@ -12,6 +12,11 @@ export function renderHero() {
     section.setAttribute('aria-label', 'Hero');
     section.innerHTML = `
         <canvas id="heroCanvas" aria-hidden="true"></canvas>
+        <div class="field-caption" aria-label="Field encoding legend">
+            <span class="fc-live"><i></i>LIVE STATEVECTOR</span>
+            <span class="fc-key">hue&nbsp;=&nbsp;amplitude&nbsp;phase</span>
+            <span class="fc-key">glyph&nbsp;weight&nbsp;=&nbsp;probability</span>
+        </div>
         <div class="hero-content">
             <div class="hero-eyebrow">
                 <span id="heroChainTag">Monad Testnet</span>
@@ -202,7 +207,7 @@ async function initLiveTicker() {
         const count = Math.min(total, 5);
         if (count > 0) {
             const ids = await contract.getRecentArtworks(count);
-            for (const id of ids.reverse()) {
+            for (const id of [...ids].reverse()) {
                 try {
                     const art = await contract.getArtwork(id);
                     const [, , , title, , timestamp, , , likes] = art;
