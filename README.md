@@ -1,22 +1,22 @@
 # GlyphGenesis
 
-**AI-Powered Autonomous Art Generation & On-Chain Marketplace**
+**Measurement-native generative art — an autonomous creative economy on Monad**
 
-> 🏆 Building the **first autonomous creative economy** where AI agents generate, trade, and collect art without human intervention.
+> 🏆 The artwork **is** the measurement. Every piece renders a real quantum circuit's output distribution — quantum walks and Bell-entangled walker pairs — and stores its executable circuit spec on-chain. An AI agent generates, mints, and trades these specimens without human intervention.
 
-**Hackathon:** [Four.meme AI Sprint](https://four.meme)  
 **Chain:** Monad Testnet (multi-chain ready)  
 **Contract:** [`0x3F40E0DB446a891271B9b21535081BD051B5Aa97`](https://testnet.monadexplorer.com/address/0x3F40E0DB446a891271B9b21535081BD051B5Aa97)  
-**Live Demo:** [glyph.thisyearnofear.com](http://glyph.thisyearnofear.com)  
+**Live Demo:** [glyphgenesis-nine.vercel.app](https://glyphgenesis-nine.vercel.app)  
 **Agent Handle:** `@glyphgenesis` on Moltbook
 
-> ⚛️ **Quantum-native evolution (in progress):** the art engine now runs on real quantum circuit measurements — quantum walks and entangled walker pairs — via the `quantum/` Python engine (Qiskit-compatible, Qollab/IonQ-ready) and `src/quantum-js.mjs` (exact statevector sim running live in the browser). The UI is a "Quantum Observatory": hero shows a live evolving statevector field (phase→hue, probability→glyph weight), the Lab generates measured specimens, and circuit specs are stored in each mint's prompt field for replayable provenance. See the quantum section in `AGENTS.md`.
+> ⚛️ **Why "measurement-native":** prior "quantum NFT" projects use quantum hardware only as an entropy source — measurement → hashed seed → a classical generator draws the picture. In GlyphGenesis the measurement *is* the picture: probability distributions and amplitude phase render directly as glyphs and hue, and the stored circuit spec (mode, backend, shots, seed, steps) makes each piece re-executable — `node scripts/quantum-verify.js <id>` re-runs the circuit and verifies the piece reproduces its own distribution. See the quantum section in `AGENTS.md`.
 
 ---
 
 ## 🎯 Why This Wins
 
 ### Innovation (30%)
+- **Measurement-native art** — the quantum measurement IS the artwork; executable circuit provenance on-chain
 - **First autonomous creative economy** — AI agents as both creators AND collectors
 - **Featherless AI Integration** — Powered by `DeepSeek-V3` for high-quality creative reasoning
 - **Natural language control** — Type "create something cyberpunk" and the agent generates it
@@ -45,10 +45,28 @@
 The agent's Moltbook/Farcaster posts are the content engine (building-in-public + distribution chapters). Treat each mint as a shareable: OG card + rarity flex + creator link. Run the K-factor worksheet on post → follower → minter, then a 48-hour test on post format.
 
 ### Presentation (20%)
-- **Live working demo** at sneldao.github.io/glyphgenesis
+- **Live working demo** at glyphgenesis-nine.vercel.app
 - **Autonomous agent running** at @glyphgenesis on Moltbook
 - **Complete documentation** for other developers to build agents
-- **Real on-chain activity** — Already minted artworks on Monad testnet
+- **Real on-chain activity** — Minted artworks on Monad testnet
+
+## 🔭 The Observatory — the product performs the claim
+
+The site doesn't assert "the measurement is the artwork" — it demonstrates it, through progressive-disclosure surfaces whose axes are the physics itself:
+
+- **Hero** — a live evolving statevector field: amplitude phase → spectral hue, probability → glyph weight, captioned honestly as statevector evolution.
+- **The Object (tier-1 section)** — a demonstration specimen with a `FIELD / CIRCUIT / VERIFY` tab rail:
+  - **FIELD** — an entangled-pair measurement that auto-accumulates shot-by-shot when scrolled into view. Ships with three disclosure primitives:
+    - *Shot scrubber* — log-scale `16 → 4096` slider; deterministic re-sampling means scrubbing backward dissolves the field into honest shot noise, forward re-measures it (same seed → same field).
+    - *Annotate* — a weighted least-squares ridge fitted to high-probability cells draws the Bell-pair correlation over the field's own grid. Only offered where the physics supports it.
+    - *Cell probe* — hovering a glyph reports its joint-outcome meaning (`pos_a=25, pos_b=9 · p≈0.003`).
+  - **CIRCUIT** — gate-level schematic rendered from the stored spec (coin Hadamards, position-register X inits, dashed `shift ±` block, explicit Bell prep). Every element is hoverable and explains its physical role.
+  - **VERIFY** — two independent 4096-shot runs side-by-side, stamped `✓ VERIFIED ρ=…` — statistical verification demonstrated, honestly labeled as a demo (not a mint).
+- **Laboratory** — generating a `Quantum Field` piece runs *measurement theater*: shots accumulate against a live counter, noise resolves into structure, then phase resolves into hue. The shot scrubber appears afterward so you can dissolve and rebuild your own measurement. Specimen strip + instrument legend (`phase → hue`, `probability → glyph`) accompany every output.
+- **Archive** — gallery modals carry `PASSPORT / VERIFY` tabs: the specimen passport shows the piece's own circuit schematic and spec; VERIFY re-measures the stored spec live and stamps `✓ EXACT REPLAY` (bit-identical) or `✓ VERIFIED ρ=…` (within shot noise). Specimens are deep-linkable via `/#piece-N`.
+- **Agent** — OODA-loop surface (Observe → Orient → Decide → Act) with Monad explorer links and live event subscriptions.
+
+Deployment path: `npm run build` → `cd dist && vercel deploy --prod --name glyphgenesis` (alias target `glyphgenesis-nine.vercel.app`).
 
 ## Dual-Chain Differentiation
 
@@ -183,20 +201,38 @@ glyphgenesis/
 ├── contracts/
 │   ├── ASCIIArt.sol            # ERC721 + marketplace + royalties (Monad)
 │   └── ASCIIArtBNB.sol         # ERC721 + auctions + collections (BNB)
+├── quantum/                    # Python quantum engine (zero-dep; Qiskit-compatible)
+│   ├── sim.py                  # Exact statevector simulator
+│   ├── circuits.py             # Gate-spec builders (walk/walk2d/entangled/GHZ)
+│   ├── backend.py              # exact / qiskit / aer / ionq backend dispatch
+│   ├── field.py                # Measurement distributions → density fields
+│   └── cli.py                  # `python3 -m quantum --json --mode ...`
+├── qollab/                     # Single-file runner for Qollab sandboxes (IonQ)
 ├── src/
 │   ├── ascii-generator.mjs     # 16 patterns, 9 themes, compose/mutate, scoring
-│   ├── contract.js             # Contract ABI, event subscriptions
+│   ├── quantum-js.mjs          # Browser port of the engine (statevector + fields)
+│   ├── quantum-measure.mjs     # Shared measurement layer: seeded sampler, shot
+│   │                           #   schedules, σx, field correlation, phase→hue
+│   │                           #   renderer, ridge fit, circuit schematic, legend
+│   ├── quantum-bridge.mjs      # Python engine → {content, field, meta} for minting
+│   ├── contract.js             # Contract ABI, event polling (Monad ≤100-block ranges)
 │   ├── wallet.js               # Wallet connection & signing
 │   ├── memory.mjs              # Agent persistent memory
 │   ├── x402.mjs                # x402 micropayments client
 │   ├── social.mjs              # Social posting (Farcaster/Moltbook)
-│   ├── style.css               # UI styles
+│   ├── observatory.css         # Observatory UI styles
+│   ├── style.css               # Base UI styles
 │   └── components/
-│       ├── generator.js        # Generator UI with compose/mutate/creativity
-│       ├── gallery.js          # Search, filter, sort, rarity badges
+│       ├── object-section.js   # "The Object" — FIELD/CIRCUIT/VERIFY specimen
+│       ├── verify-mount.js     # Shared live re-measurement + verdict panel
+│       ├── scrubber.js         # Shot scrubber + cell probe primitives
+│       ├── generator.js        # Laboratory: measurement theater + mint
+│       ├── gallery.js          # Archive: passport/verify modal, #piece-N links
+│       ├── agent-panel.js      # OODA agent surface + live events
+│       ├── hero.js             # Live statevector hero + ticker
+│       ├── how-it-works.js     # Contract appendix (collapsed drawer)
 │       ├── onboarding.js       # Guided first-mint flow
 │       ├── cache.js            # localStorage cache with TTL + optimistic
-│       ├── hero.js             # Landing section
 │       ├── nav.js              # Navigation bar
 │       ├── footer.js           # Footer
 │       ├── stats-bar.js        # Live chain stats
@@ -204,11 +240,15 @@ glyphgenesis/
 │       └── toast.js            # Toast notifications
 ├── scripts/
 │   ├── deploy.js               # Contract deployment
-│   ├── mint.js                 # Mint, view gallery, like artwork
+│   ├── mint.js                 # Mint, gallery, like — `quantum` subcommand mints
+│   │                           #   measured pieces with spec embedded on-chain
+│   ├── quantum-art.js          # CLI: generate quantum art via the bridge
+│   ├── quantum-verify.js       # Re-run a mint's stored circuit spec + compare
 │   └── agent.js                # Autonomous agent with OODA loop
 ├── test/
 │   ├── ASCIIArt.test.js        # Contract tests (41 cases)
-│   └── ascii-generator.test.mjs # Generator tests (79 cases)
+│   ├── ascii-generator.test.mjs # Generator tests (79 cases)
+│   └── quantum_engine_test.py  # Quantum engine tests
 ├── index.html                  # Interactive frontend (Vite SPA)
 ├── main.js                     # App entry point
 ├── hardhat.config.js           # Monad + BNB testnet config
@@ -282,4 +322,4 @@ MIT
 
 ---
 
-Built by [@glyphgenesis](https://moltbook.com/u/moonynads) for [Four.meme AI Sprint](https://four.meme)
+Built by [@glyphgenesis](https://moltbook.com/u/moonynads) — originated at [Four.meme AI Sprint](https://four.meme), evolved for Monad Metropolis

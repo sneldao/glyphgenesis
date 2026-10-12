@@ -298,7 +298,7 @@ const unsubscribe = subscribeToEvents({
   onArtworkLiked: (like) => console.log(`Like on #${like.id}`),
 });
 ```
-This implementation automatically detects the chain and uses a high-performance `eth_getLogs` polling loop (15s) when traditional filters are unavailable.
+This implementation automatically detects the chain and uses a high-performance `eth_getLogs` polling loop (15s) when traditional filters are unavailable. On Monad the poll clamps each query to ≤100 blocks (`eth_getLogs` rejects larger ranges) and advances the cursor to the last block actually polled, so no events are skipped when the head is far ahead.
 
 ## Quantum Generation (Qollab/IonQ)
 
@@ -334,6 +334,14 @@ python3 test/quantum_engine_test.py                         # engine tests
 - `quantum/field.py` — measurement distributions → density fields; `--shots N` renders real finite-shot statistics
 - `src/quantum-bridge.mjs` — `quantumArt(opts)` → `{content, field, meta}` for minting through the normal pipeline
 - `src/quantum-js.mjs` — **browser-native port**: exact statevector simulator + all four field modes, no deps. Powers the hero's live evolving field (phase→hue, probability→glyph weight), the Lab's `Quantum Field` generation type, and the gallery's "re-run circuit" verifier. Browser mints store the same `{"quantum": {...}}` spec in the prompt field.
+- `src/quantum-measure.mjs` — shared measurement layer: seeded finite-shot sampler (`makeSampler`, deterministic replay via mulberry32 + CDF bisection), `shotSchedule`, `sigmaX`, `fieldCorrelation` (Pearson over weights), `renderFieldHtml` (phase→hue), `fitRidge` (weighted ridge through high-probability cells), `circuitSvg` (per-mode schematic with hoverable `.cs-el` groups carrying `data-desc`), `legendHtml`.
+- `src/components/object-section.js` — "The Object": FIELD/CIRCUIT/VERIFY specimen with shot scrubber, ridge annotation, cell probe, circuit cross-highlight.
+- `src/components/verify-mount.js` — shared re-measurement panel (`mountVerify`): live shot accumulation → `EXACT REPLAY` / `VERIFIED ρ=…` / `PARTIAL` / `DIVERGENT` verdict.
+- `src/components/scrubber.js` — `mountShotScrubber` (log-scale 16→shots deterministic re-sampling) + `mountCellProbe` (glyph hover → joint-outcome readout).
+
+### Observatory verification semantics
+
+Two tiers, both honest: `measurement: 'exact'` pieces verify **bit-for-bit** (same spec + seed ⇒ identical field); `measurement: 'shots'` pieces verify **statistically** (ρ within shot noise). Hardware (`ionq`/`qollab`) pieces record a physical event — the stored field is the measurement record, not reproducible. The UI never claims hardware provenance for simulator output.
 
 On Qollab, transpile the same specs via `backend._to_qiskit()` and submit to an IonQ backend.
 
