@@ -153,27 +153,58 @@ export function fieldCorrelation(aText, bText, chars) {
     return cov / Math.sqrt(va * vb);
 }
 
+/**
+ * Weighted least-squares ridge through the high-probability cells —
+ * the annotation layer's correlation guide line, fitted to the actual
+ * measured distribution rather than drawn decoratively.
+ * Returns {x0,y0,x1,y1} in cell coordinates.
+ */
+export function fitRidge(field, thresh = 0.12) {
+    const w = fieldWeights(field);
+    let peak = 0;
+    for (const row of w) for (const v of row) peak = Math.max(peak, v);
+    let sx = 0, sy = 0, sxx = 0, sxy = 0, sw = 0;
+    let x0 = Infinity, x1 = -Infinity;
+    for (let y = 0; y < w.length; y++) for (let x = 0; x < w[0].length; x++) {
+        const v = w[y][x];
+        if (v < peak * thresh) continue;
+        sx += x * v; sy += y * v; sxx += x * x * v; sxy += x * y * v; sw += v;
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x);
+    }
+    if (!sw || x1 <= x0) return null;
+    const mx = sx / sw, my = sy / sw;
+    const varX = Math.max(sxx / sw - mx * mx, 1e-9);
+    const slope = (sxy / sw - mx * my) / varX;
+    return { x0, y0: my + slope * (x0 - mx), x1, y1: my + slope * (x1 - mx), slope };
+}
+
 /* ─── circuit schematic — the "sheet music" behind a spec ─── */
 
 const WIRE = '#3a3f4d', GATE_BG = '#f4f0e6', ACC = '#1f46b4', TEAL = '#0c8f84';
 
-function wireRow(label, y, w) {
-    return `<text x="8" y="${y + 4}" font-size="11" fill="#6d7590" font-family="monospace">${label}</text>` +
+const desc = (inner, d) => `<g class="cs-el" data-desc="${d.replace(/"/g, '&quot;')}">${inner}</g>`;
+
+function wireRow(label, y, w, d = '') {
+    const row = `<text x="8" y="${y + 4}" font-size="11" fill="#6d7590" font-family="monospace">${label}</text>` +
         `<line x1="86" y1="${y}" x2="${w - 14}" y2="${y}" stroke="${WIRE}" stroke-width="1.2"/>`;
+    return d ? desc(row, d) : row;
 }
-function gateBox(x, y, label, color = ACC) {
-    return `<rect x="${x - 11}" y="${y - 11}" width="22" height="22" fill="${GATE_BG}" stroke="${color}" stroke-width="1.5"/>` +
+function gateBox(x, y, label, color = ACC, d = '') {
+    const inner = `<rect x="${x - 11}" y="${y - 11}" width="22" height="22" fill="${GATE_BG}" stroke="${color}" stroke-width="1.5"/>` +
         `<text x="${x}" y="${y + 4.5}" font-size="12" fill="${color}" font-family="monospace" text-anchor="middle">${label}</text>`;
+    return d ? desc(inner, d) : inner;
 }
-function stepBlock(x, y1, y2, label) {
-    return `<rect x="${x}" y="${y1 - 14}" width="86" height="${y2 - y1 + 28}" fill="none" stroke="${TEAL}" stroke-width="1.2" stroke-dasharray="4 3" rx="2"/>` +
+function stepBlock(x, y1, y2, label, d = '') {
+    const inner = `<rect x="${x}" y="${y1 - 14}" width="86" height="${y2 - y1 + 28}" fill="none" stroke="${TEAL}" stroke-width="1.2" stroke-dasharray="4 3" rx="2"/>` +
         `<text x="${x + 43}" y="${y2 + 26}" font-size="10" fill="${TEAL}" font-family="monospace" text-anchor="middle">${label}</text>`;
+    return d ? desc(inner, d) : inner;
 }
-function bellPrep(x, y1, y2) {
-    return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${WIRE}" stroke-width="1.2"/>` +
+function bellPrep(x, y1, y2, d = '') {
+    const inner = `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${WIRE}" stroke-width="1.2"/>` +
         `<circle cx="${x}" cy="${y1}" r="3.5" fill="${ACC}"/>` +
         `<circle cx="${x}" cy="${y2}" r="7" fill="none" stroke="${ACC}" stroke-width="1.5"/>` +
         `<line x1="${x - 5}" y1="${y2}" x2="${x + 5}" y2="${y2}" stroke="${ACC}" stroke-width="1.5"/>`;
+    return d ? desc(inner, d) : inner;
 }
 
 /**
@@ -183,6 +214,17 @@ function bellPrep(x, y1, y2) {
 export function circuitSvg(spec) {
     const { mode, steps } = spec;
     const y0 = 34, dy = 30;
+    const D = {
+        coinH: 'Hadamard on the coin qubit — puts the walker into a superposition of moving left and right',
+        posX: 'X gate — recenters the position register so the walk can spread both ways',
+        shift: 'multi-controlled increment/decrement ladder — moves |x⟩±1 conditioned on the coin, once per step. Each step doubles the reachable positions: ballistic, not diffusive',
+        bell: 'H then CNOT between the two coin qubits — creates the shared |Φ+⟩ state. The correlation ridge in the field is this entanglement',
+        bellH: 'Hadamard on the already-entangled coin — both walkers now move in superposition',
+        ry: 'Ry(π/3) — a biased coin toss for the second walk axis',
+        xstart: 'X(start) — initializes the walker at each row\'s start position; the start index scans across rows',
+        hsteps: 'the coin toss repeats every step — each repetition doubles the wavefront',
+        ridge: 'the correlation between the two walkers is born here',
+    };
     const rows = {
         walk2d: [['q₀ coin', 'H', 'H', 'coin toss'], ['q₁–₅ pos x', 'X', 'shift±', 'even steps'], ['q₆–₁₀ pos y', 'X', 'shift±', 'odd steps']],
         sweep: [['q₀ coin', 'H', 'H', 'coin toss'], ['q₁–₆ pos', 'X·start', 'shift±', '×steps'], ['— start scans', '', '', 'per row']],
@@ -193,31 +235,34 @@ export function circuitSvg(spec) {
     const H = 60 + rows.length * dy + 24, W = 660;
     let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${mode} circuit schematic">`;
     svg += `<text x="8" y="16" font-size="10" letter-spacing="2" fill="#6d7590" font-family="monospace">CIRCUIT SCHEMATIC · ${mode.toUpperCase()} · ${spec.qubits ?? '—'} QUBITS · ONE STEP SHOWN ×${steps}</text>`;
-    rows.forEach(([label], i) => { svg += wireRow(label, y0 + i * dy, W); });
+    rows.forEach(([label], i) => {
+        const isPos = /pos/.test(label);
+        svg += wireRow(label, y0 + i * dy, W, isPos ? 'position register — a binary encoding of where the walker is' : 'coin qubit — controls the direction each step');
+    });
 
     if (mode === 'entangled') {
         // Bell prep is the physics claim — draw it explicitly
-        svg += gateBox(110, y0, 'H');
-        svg += bellPrep(150, y0, y0 + dy);
-        svg += stepBlock(190, y0, y0 + 3 * dy, `shift ± ×${steps}`);
-        svg += gateBox(190 + 20, y0 + dy, 'H');
-        svg += `<text x="${W - 150}" y="${y0 - 6}" font-size="10" fill="#c82436" font-family="monospace">entangled here</text>`;
+        svg += gateBox(110, y0, 'H', ACC, D.bell);
+        svg += bellPrep(150, y0, y0 + dy, D.bell);
+        svg += stepBlock(190, y0, y0 + 3 * dy, `shift ± ×${steps}`, D.shift);
+        svg += gateBox(190 + 20, y0 + dy, 'H', ACC, D.bellH);
+        svg += desc(`<text x="${W - 150}" y="${y0 - 6}" font-size="10" fill="#c82436" font-family="monospace">entangled here</text>`, D.ridge);
     } else if (mode === 'grid') {
-        svg += gateBox(110, y0, 'H');
-        svg += stepBlock(190, y0, y0 + dy, `walk x ×${steps}`);
-        svg += gateBox(110, y0 + 2 * dy, 'Ry');
-        svg += stepBlock(190, y0 + 2 * dy, y0 + 3 * dy, `walk y ×${steps}`);
+        svg += gateBox(110, y0, 'H', ACC, D.coinH);
+        svg += stepBlock(190, y0, y0 + dy, `walk x ×${steps}`, D.shift);
+        svg += gateBox(110, y0 + 2 * dy, 'Ry', ACC, D.ry);
+        svg += stepBlock(190, y0 + 2 * dy, y0 + 3 * dy, `walk y ×${steps}`, D.shift);
         svg += `<text x="${W - 210}" y="${H - 8}" font-size="10" fill="#6d7590" font-family="monospace">two separable walks — no shared coin</text>`;
     } else {
-        svg += gateBox(110, y0, 'H');
+        svg += gateBox(110, y0, 'H', ACC, D.coinH);
         rows.forEach(([, init], i) => {
-            if (init === 'X') svg += gateBox(110, y0 + i * dy, 'X');
-            if (init === 'X·start') svg += `<text x="118" y="${y0 + i * dy + 4}" font-size="10" fill="${ACC}" font-family="monospace">X(start)</text>`;
+            if (init === 'X') svg += gateBox(110, y0 + i * dy, 'X', ACC, D.posX);
+            if (init === 'X·start') svg += desc(`<text x="118" y="${y0 + i * dy + 4}" font-size="10" fill="${ACC}" font-family="monospace">X(start)</text>`, D.xstart);
         });
         const first = rows.findIndex(r => r[2] === 'shift±');
         const last = rows.map((r, i) => r[2] === 'shift±' ? i : -1).filter(i => i >= 0).pop();
-        if (first >= 0) svg += stepBlock(190, y0 + first * dy, y0 + last * dy, `shift ± ×${steps}`);
-        svg += `<text x="${W - 130}" y="${y0 - 6}" font-size="10" fill="${ACC}" font-family="monospace">H ×${steps}</text>`;
+        if (first >= 0) svg += stepBlock(190, y0 + first * dy, y0 + last * dy, `shift ± ×${steps}`, D.shift);
+        svg += desc(`<text x="${W - 130}" y="${y0 - 6}" font-size="10" fill="${ACC}" font-family="monospace">H ×${steps}</text>`, D.hsteps);
     }
     svg += '</svg>';
     return svg;

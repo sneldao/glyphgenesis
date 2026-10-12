@@ -529,6 +529,7 @@ export function showArtModal(art) {
                 <div class="passport">
                     <div class="passport-head">SPECIMEN PASSPORT — the circuit is the certificate</div>
                     <div class="passport-circuit">${circuitSvg(quantum)}</div>
+                    <div class="circuit-desc">hover a gate or wire for its role in the field</div>
                     <div class="specimen-spec">
                         <b>CIRCUIT</b> ${escapeHtml(quantum.mode)}
                         <b>STEPS</b> ${quantum.steps}
@@ -602,6 +603,18 @@ export function showArtModal(art) {
 
     // tabbed provenance — PASSPORT default; VERIFY mounts the re-measurement lazily
     if (quantum) {
+        // circuit cross-highlight — each schematic element explains its role
+        const circuitBox = overlay.querySelector('.passport-circuit');
+        const cdesc = overlay.querySelector('.circuit-desc');
+        if (circuitBox && cdesc) {
+            const d0 = cdesc.textContent;
+            circuitBox.addEventListener('mouseover', (e) => {
+                const el = e.target.closest?.('.cs-el');
+                cdesc.textContent = el?.dataset.desc || d0;
+                cdesc.classList.toggle('active', !!el);
+            });
+            circuitBox.addEventListener('mouseleave', () => { cdesc.textContent = d0; cdesc.classList.remove('active'); });
+        }
         let verifyMounted = false;
         overlay.querySelectorAll('.obj-tab').forEach(tab => {
             tab.addEventListener('click', () => {

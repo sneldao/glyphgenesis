@@ -1,6 +1,7 @@
 import { generate, parsePrompt, creativityScore, getRarity, PATTERN_LIST, THEME_LIST, CHARS, mutateArt } from '@/ascii-generator.mjs';
 import { QUANTUM_FIELDS, renderField, quantumSpec } from '@/quantum-js.mjs';
 import { makeSampler, shotSchedule, renderFieldHtml, legendHtml, sigmaX } from '@/quantum-measure.mjs';
+import { mountShotScrubber } from './scrubber.js';
 import { isConnected, getContract, onWalletEvent } from '@/wallet.js';
 import { EXPLORER_TX, getActiveChain, getActiveChainKey, getCurrencyLabel } from '@/contract.js';
 import { showToast } from './toast.js';
@@ -82,6 +83,7 @@ export function renderGenerator() {
             <div class="generator-output">
                 <div class="output-label" aria-hidden="true">Measurement Display</div>
                 <div id="measureReadout" class="measure-readout" style="display:none;" role="status" aria-live="polite"></div>
+                <div id="shotScrubber" class="obj-scrub lab-scrub" style="display:none;"></div>
                 <div id="output" role="img" aria-label="Generated ASCII art output">Click [ Generate ] to create your masterpiece...</div>
                 <div id="specimenStrip" class="specimen-spec" style="display:none;"></div>
                 <div id="instrumentLegend" style="display:none;"></div>
@@ -235,6 +237,8 @@ function stopMeasure() {
     if (measureTimer) { clearInterval(measureTimer); measureTimer = null; }
     const ro = document.getElementById('measureReadout');
     if (ro) ro.style.display = 'none';
+    const sc = document.getElementById('shotScrubber');
+    if (sc) sc.style.display = 'none';
 }
 
 function generateQuantum(parsed, themeId, animated, output, detectionMsg) {
@@ -283,6 +287,20 @@ function runMeasurement(exactField, phase, { mode, width, height, steps, seed, c
         // phase is a statevector quantity — it resolves over the measured weights
         output.innerHTML = phase ? renderFieldHtml(measured, chars, phase) : currentArt;
         if (readout) readout.innerHTML = `◈ measured — shots <b>${TOTAL_SHOTS}</b> · seed ${seed} · σ<sub>x</sub> ${sigmaX(measured).toFixed(2)} (exact ${sigma.toFixed(2)})`;
+        // shot scrubber — drag backward and watch the measurement dissolve into noise
+        const scrubEl = document.getElementById('shotScrubber');
+        if (scrubEl) {
+            scrubEl.style.display = 'block';
+            mountShotScrubber(scrubEl, {
+                field: exactField, seed, shots: TOTAL_SHOTS,
+                render(n, s) {
+                    const f = s.field();
+                    if (n >= TOTAL_SHOTS && phase) output.innerHTML = renderFieldHtml(f, chars, phase);
+                    else output.textContent = renderField(f, chars);
+                    if (readout) readout.innerHTML = `◉ shots <b>${n}</b>/${TOTAL_SHOTS} · σ<sub>x</sub> ${sigmaX(f).toFixed(2)} (exact ${sigma.toFixed(2)})`;
+                },
+            });
+        }
         currentQuantumSpec = { ...quantumSpec(mode, { width, height, steps, seed, shots: TOTAL_SHOTS }), measurement: 'shots' };
         showSpecimenStrip(currentQuantumSpec, 1);
         showInstrumentLegend(!!phase);

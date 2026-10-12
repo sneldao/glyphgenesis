@@ -676,6 +676,136 @@ input:focus-visible, select:focus-visible {
 .modal .obj-pane[data-pane="passport"] .passport { margin: 0; border-top: 0; }
 .modal .obj-pane[data-pane="verify"] { padding: .8rem 0 0; }
 
+/* ─── progressive disclosure primitives: scrubber / annotate / cell probe ─── */
+.object-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    flex-wrap: wrap;
+    margin-bottom: .7rem;
+}
+.obj-scrub { flex: 1 1 14rem; min-width: 12rem; }
+.scrub-row {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: rgba(159,232,201,.7);
+}
+.scrub-val { color: #9fe8c9; min-width: 3.4ch; text-align: right; }
+.scrub-range {
+    flex: 1;
+    appearance: none;
+    -webkit-appearance: none;
+    height: 2px;
+    background: rgba(159,232,201,.3);
+    border-radius: 1px;
+    outline-offset: 4px;
+    cursor: ew-resize;
+}
+.scrub-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #9fe8c9;
+    border: 2px solid #14161c;
+    box-shadow: 0 0 8px rgba(87,232,138,.5);
+}
+.scrub-range::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #9fe8c9;
+    border: 2px solid #14161c;
+    box-shadow: 0 0 8px rgba(87,232,138,.5);
+}
+.scrub-range:focus-visible { outline: 1px solid rgba(159,232,201,.6); }
+
+/* lab scrubber — sits inside the lighter output well */
+.lab-scrub { margin: .5rem 0 .4rem; }
+.lab-scrub .scrub-row { color: var(--muted); }
+.lab-scrub .scrub-val { color: var(--accent); }
+.lab-scrub .scrub-range { background: rgba(31,70,180,.25); }
+.lab-scrub .scrub-range::-webkit-slider-thumb { background: var(--accent); border-color: #f4f0e6; box-shadow: 0 0 8px rgba(31,70,180,.35); }
+.lab-scrub .scrub-range::-moz-range-thumb { background: var(--accent); border-color: #f4f0e6; box-shadow: 0 0 8px rgba(31,70,180,.35); }
+
+.annotate-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: rgba(159,232,201,.7);
+    cursor: pointer;
+    user-select: none;
+}
+.annotate-toggle input { accent-color: #57e88a; margin: 0; cursor: pointer; }
+.annotate-toggle:has(input:checked) { color: #9fe8c9; }
+
+.cell-readout {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .08em;
+    color: rgba(159,232,201,.75);
+    min-height: 1em;
+    flex: 1 1 100%;
+}
+
+/* annotation overlay — fitted ridge drawn over the field's own grid */
+.object-field-wrap { position: relative; }
+.object-field-wrap .object-field { position: relative; z-index: 1; }
+.field-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: none;
+    pointer-events: none;
+    z-index: 2;
+}
+.field-overlay .ridge-line {
+    stroke: #ff5c8a;
+    stroke-dasharray: 1.1 .55;
+    vector-effect: non-scaling-stroke;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 3px rgba(255,92,138,.6));
+}
+.field-overlay .ridge-dot { fill: #ff5c8a; }
+.field-overlay .ridge-label {
+    fill: #ff5c8a;
+    font-family: var(--mono);
+    font-size: 1.55px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: #14161c;
+    stroke-width: .5;
+}
+.field-overlay .ridge-sub { fill: rgba(255,92,138,.75); font-size: 1.2px; }
+
+/* circuit cross-highlight — hover explains the element's physical role */
+.cs-el { cursor: help; }
+.cs-el:hover rect, .cs-el:hover circle, .cs-el:hover line { stroke: #ff5c8a; }
+.cs-el:hover rect { fill: #fdeef3; }
+.cs-el:hover circle[fill] { fill: #ff5c8a; }
+.cs-el:hover text { fill: #c82436; }
+.circuit-desc {
+    font-family: var(--mono);
+    font-size: .62rem;
+    line-height: 1.5;
+    color: var(--muted);
+    min-height: 2.4em;
+    margin-top: .5rem;
+    transition: color .15s;
+}
+.circuit-desc.active { color: var(--accent); }
+
 /* ─── appendix drawer — contract CRUD demoted to expandable docs ─── */
 .protocol-drawer summary {
     list-style: none;

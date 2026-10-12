@@ -1,7 +1,8 @@
 import { QUANTUM_FIELDS, renderField } from '@/quantum-js.mjs';
 import { CHARS } from '@/ascii-generator.mjs';
-import { makeSampler, shotSchedule, circuitSvg, legendHtml, renderFieldHtml } from '@/quantum-measure.mjs';
+import { makeSampler, shotSchedule, circuitSvg, legendHtml, renderFieldHtml, fitRidge } from '@/quantum-measure.mjs';
 import { mountVerify } from './verify-mount.js';
+import { mountShotScrubber, mountCellProbe } from './scrubber.js';
 
 /**
  * FILE Nº 01 — The Object.
@@ -43,11 +44,20 @@ export function renderObjectSection() {
             <div class="object-body">
                 <div class="obj-pane" data-pane="field">
                     <div class="object-readout" id="objReadout" role="status">standby — press re-measure or scroll into view</div>
-                    <pre class="object-field" id="objField"></pre>
+                    <div class="object-controls">
+                        <div id="objScrub" class="obj-scrub"></div>
+                        <label class="annotate-toggle"><input type="checkbox" id="objAnnotate"> annotate</label>
+                        <span class="cell-readout" id="objCell"></span>
+                    </div>
+                    <div class="object-field-wrap">
+                        <pre class="object-field" id="objField"></pre>
+                        <svg class="field-overlay" id="objOverlay" aria-hidden="true"></svg>
+                    </div>
                     <div id="objLegend"></div>
                 </div>
                 <div class="obj-pane" data-pane="circuit" hidden>
                     <div class="passport-circuit" id="objCircuit"></div>
+                    <div class="circuit-desc" id="objCircuitDesc">hover a gate or wire — each element explains what it does to the field</div>
                     <div class="specimen-spec" id="objSpec"></div>
                     <div class="object-note">compressed schematic — the multi-controlled shift ladder collapses to the dashed block; the full gate list is in the spec stored with each mint</div>
                 </div>
@@ -114,6 +124,65 @@ export function renderObjectSection() {
     }, { threshold: 0.35 }).observe(section.querySelector('.object-panel'));
 
     section.querySelector('[data-remeasure]').addEventListener('click', runTheater);
+
+    /* shot scrubber — disclosure along the physical axis. Each position
+       re-samples deterministically, so scrubbing is lossless. Phase hues
+       return at full shot count. */
+    mountShotScrubber(section.querySelector('#objScrub'), {
+        field: exactField, seed: STORED_SEED, shots: SHOTS, chars,
+        render(n, s) {
+            const f = s.field();
+            if (n >= SHOTS && phase) pre.innerHTML = renderFieldHtml(f, chars, phase);
+            else pre.textContent = renderField(f, chars);
+            readout.innerHTML = `◉ shots <b>${n}</b>/${SHOTS} · seed ${STORED_SEED}${n >= SHOTS ? ' · entangled pair — the ridge is the Bell pair' : ''}`;
+        },
+    });
+
+    /* cell probe — hover a glyph, get its joint-outcome meaning */
+    mountCellProbe(pre, {
+        cols: W, rows: H, field: exactField, out: section.querySelector('#objCell'), mode: MODE,
+    });
+
+    /* annotation layer — the correlation ridge fitted to the measured field */
+    const overlay = section.querySelector('#objOverlay');
+    const annotate = section.querySelector('#objAnnotate');
+    const drawOverlay = () => {
+        if (!annotate.checked) { overlay.innerHTML = ''; overlay.style.display = 'none'; return; }
+        const cs = getComputedStyle(pre);
+        const probe = document.createElement('canvas').getContext('2d');
+        probe.font = `${cs.fontSize} ${cs.fontFamily}`;
+        const cw = probe.measureText('█').width;
+        const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+        overlay.style.display = 'block';
+        overlay.style.width = `${W * cw}px`;
+        overlay.style.height = `${H * lh}px`;
+        overlay.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        const ridge = fitRidge(exactField);
+        if (!ridge) return;
+        const mx = (ridge.x0 + ridge.x1) / 2, my = (ridge.y0 + ridge.y1) / 2;
+        overlay.innerHTML =
+            `<line x1="${ridge.x0 + .5}" y1="${ridge.y0 + .5}" x2="${ridge.x1 + .5}" y2="${ridge.y1 + .5}" class="ridge-line"/>` +
+            `<circle cx="${ridge.x0 + .5}" cy="${ridge.y0 + .5}" r=".8" class="ridge-dot"/>` +
+            `<circle cx="${ridge.x1 + .5}" cy="${ridge.y1 + .5}" r=".8" class="ridge-dot"/>` +
+            `<text x="${mx}" y="${my - 2.4}" class="ridge-label">correlation ridge — the Bell pair</text>` +
+            `<text x="${mx}" y="${my + 3.4}" class="ridge-label ridge-sub">measuring walker a tells you where b landed</text>`;
+    };
+    annotate.addEventListener('change', drawOverlay);
+    if (document.fonts?.ready) document.fonts.ready.then(() => { if (annotate.checked) drawOverlay(); });
+
+    /* circuit cross-highlight — hover an element, get its physical role */
+    const circuitDesc = section.querySelector('#objCircuitDesc');
+    const circuitBox = section.querySelector('#objCircuit');
+    const descDefault = circuitDesc.textContent;
+    circuitBox.addEventListener('mouseover', (e) => {
+        const el = e.target.closest?.('.cs-el');
+        circuitDesc.textContent = el?.dataset.desc || descDefault;
+        circuitDesc.classList.toggle('active', !!el);
+    });
+    circuitBox.addEventListener('mouseleave', () => {
+        circuitDesc.textContent = descDefault;
+        circuitDesc.classList.remove('active');
+    });
 
     // tabs — VERIFY mounts lazily on first open
     let verifyMounted = false;
